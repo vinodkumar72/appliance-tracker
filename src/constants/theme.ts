@@ -14,6 +14,12 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    tint: '#2F6FED',
+    onTint: '#ffffff',
+    danger: '#D64545',
+    warning: '#B7791F',
+    success: '#2F855A',
+    border: '#E0E1E6',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +27,12 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    tint: '#5B8CFF',
+    onTint: '#0B1220',
+    danger: '#FF6B6B',
+    warning: '#F0B34E',
+    success: '#57C48C',
+    border: '#2E3135',
   },
 } as const;
 
