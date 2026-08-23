@@ -2,11 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { addMonths, daysUntil, today } from './dates';
+import { addMonths, daysUntil, nowISO, today } from './dates';
 import { APPLIANCE_TYPES } from './defaults';
 import { buildSeedData } from './seed';
 import type {
   Appliance,
+  DeletionRecord,
   MaintenanceLog,
   Membership,
   Organization,
@@ -33,6 +34,10 @@ interface AppState {
   appliances: Appliance[];
   logs: MaintenanceLog[];
   schedules: Schedule[];
+  /** Tombstones for local deletes, replayed against the server on sync. */
+  deletions: DeletionRecord[];
+  /** When this device last synced with the backend; null = never / no backend yet. */
+  lastSyncAt: string | null;
   hydrated: boolean;
 
   /** Sets up the software operator account (first run). */
@@ -104,6 +109,8 @@ export const useAppStore = create<AppState>()(
       appliances: [],
       logs: [],
       schedules: [],
+      deletions: [],
+      lastSyncAt: null,
       hydrated: false,
 
       bootstrapPlatformAdmin: (name, email) => {
@@ -111,7 +118,14 @@ export const useAppStore = create<AppState>()(
         set((s) => ({
           users: [
             ...s.users,
-            { id, name: name.trim(), email: email.trim(), isPlatformAdmin: true, createdAt: today() },
+            {
+              id,
+              name: name.trim(),
+              email: email.trim(),
+              isPlatformAdmin: true,
+              createdAt: today(),
+              updatedAt: nowISO(),
+            },
           ],
           session: { ...s.session, currentUserId: id },
         }));
@@ -119,7 +133,9 @@ export const useAppStore = create<AppState>()(
       claimPlatformOwnership: () =>
         set((s) => ({
           users: s.users.map((u) =>
-            u.id === s.session.currentUserId ? { ...u, isPlatformAdmin: true } : u,
+            u.id === s.session.currentUserId
+              ? { ...u, isPlatformAdmin: true, updatedAt: nowISO() }
+              : u,
           ),
         })),
       createOrganization: (name, ownerName, ownerEmail) => {
@@ -132,11 +148,26 @@ export const useAppStore = create<AppState>()(
           const ownerId = existingOwner?.id ?? uid();
           const users = existingOwner
             ? s.users
-            : [...s.users, { id: ownerId, name: ownerName.trim() || 'Owner', email, createdAt: today() }];
+            : [
+                ...s.users,
+                {
+                  id: ownerId,
+                  name: ownerName.trim() || 'Owner',
+                  email,
+                  createdAt: today(),
+                  updatedAt: nowISO(),
+                },
+              ];
           return {
-            organizations: [...s.organizations, { id: orgId, name: name.trim(), createdAt: today() }],
+            organizations: [
+              ...s.organizations,
+              { id: orgId, name: name.trim(), createdAt: today(), updatedAt: nowISO() },
+            ],
             users,
-            memberships: [...s.memberships, { id: uid(), orgId, userId: ownerId, role: 'owner' as Role }],
+            memberships: [
+              ...s.memberships,
+              { id: uid(), orgId, userId: ownerId, role: 'owner' as Role, updatedAt: nowISO() },
+            ],
             session: { ...s.session, currentOrgId: orgId },
           };
         });
@@ -144,7 +175,9 @@ export const useAppStore = create<AppState>()(
       },
       renameOrganization: (id, name) =>
         set((s) => ({
-          organizations: s.organizations.map((o) => (o.id === id ? { ...o, name: name.trim() } : o)),
+          organizations: s.organizations.map((o) =>
+            o.id === id ? { ...o, name: name.trim(), updatedAt: nowISO() } : o,
+          ),
         })),
       switchOrganization: (orgId) =>
         set((s) => {
@@ -167,7 +200,16 @@ export const useAppStore = create<AppState>()(
           const userId = existing?.id ?? uid();
           const users = existing
             ? s.users
-            : [...s.users, { id: userId, name: name.trim(), email: email.trim(), createdAt: today() }];
+            : [
+                ...s.users,
+                {
+                  id: userId,
+                  name: name.trim(),
+                  email: email.trim(),
+                  createdAt: today(),
+                  updatedAt: nowISO(),
+                },
+              ];
           const alreadyMember = s.memberships.some(
             (m) => m.orgId === s.session.currentOrgId && m.userId === userId,
           );
@@ -178,6 +220,7 @@ export const useAppStore = create<AppState>()(
             role,
             ...(propertyIds && propertyIds.length > 0 ? { propertyIds } : {}),
             ...(unitIds && unitIds.length > 0 ? { unitIds } : {}),
+            updatedAt: nowISO(),
           };
           return {
             users,
@@ -200,6 +243,7 @@ export const useAppStore = create<AppState>()(
             } else if (patch.unitIds) {
               next.unitIds = patch.unitIds;
             }
+            next.updatedAt = nowISO();
             return next;
           }),
         })),
@@ -214,7 +258,14 @@ export const useAppStore = create<AppState>()(
             const next = memberships.find((m) => m.orgId === target.orgId);
             session = { ...s.session, currentUserId: next?.userId ?? null };
           }
-          return { memberships, session };
+          return {
+            memberships,
+            session,
+            deletions: [
+              ...s.deletions,
+              { entity: 'membership' as const, id: membershipId, deletedAt: nowISO() },
+            ],
+          };
         }),
 
       addProperty: (p) => {
@@ -222,13 +273,18 @@ export const useAppStore = create<AppState>()(
         const orgId = get().session.currentOrgId;
         if (!orgId) return id;
         set((s) => ({
-          properties: [...s.properties, { ...p, id, orgId, createdAt: today() }],
+          properties: [
+            ...s.properties,
+            { ...p, id, orgId, createdAt: today(), updatedAt: nowISO() },
+          ],
         }));
         return id;
       },
       updateProperty: (id, patch) =>
         set((s) => ({
-          properties: s.properties.map((p) => (p.id === id ? { ...p, ...patch, id } : p)),
+          properties: s.properties.map((p) =>
+            p.id === id ? { ...p, ...patch, id, updatedAt: nowISO() } : p,
+          ),
         })),
       deleteProperty: (id) =>
         set((s) => {
@@ -238,7 +294,20 @@ export const useAppStore = create<AppState>()(
           const removedUnitIds = new Set(
             s.units.filter((u) => u.propertyId === id).map((u) => u.id),
           );
+          const at = nowISO();
+          const tombstones: DeletionRecord[] = [
+            { entity: 'property', id, deletedAt: at },
+            ...[...removedUnitIds].map((u) => ({ entity: 'unit' as const, id: u, deletedAt: at })),
+            ...[...applianceIds].map((a) => ({ entity: 'appliance' as const, id: a, deletedAt: at })),
+            ...s.logs
+              .filter((l) => applianceIds.has(l.applianceId))
+              .map((l) => ({ entity: 'log' as const, id: l.id, deletedAt: at })),
+            ...s.schedules
+              .filter((sc) => applianceIds.has(sc.applianceId))
+              .map((sc) => ({ entity: 'schedule' as const, id: sc.id, deletedAt: at })),
+          ];
           return {
+            deletions: [...s.deletions, ...tombstones],
             properties: s.properties.filter((p) => p.id !== id),
             units: s.units.filter((u) => u.propertyId !== id),
             appliances: s.appliances.filter((a) => a.propertyId !== id),
@@ -249,6 +318,7 @@ export const useAppStore = create<AppState>()(
               const next = { ...m };
               if (next.propertyIds) next.propertyIds = next.propertyIds.filter((pid) => pid !== id);
               if (next.unitIds) next.unitIds = next.unitIds.filter((u) => !removedUnitIds.has(u));
+              next.updatedAt = at;
               return next;
             }),
           };
@@ -256,23 +326,29 @@ export const useAppStore = create<AppState>()(
 
       addUnit: (u) => {
         const id = uid();
-        set((s) => ({ units: [...s.units, { ...u, id, createdAt: today() }] }));
+        set((s) => ({
+          units: [...s.units, { ...u, id, createdAt: today(), updatedAt: nowISO() }],
+        }));
         return id;
       },
       updateUnit: (id, patch) =>
         set((s) => ({
-          units: s.units.map((u) => (u.id === id ? { ...u, ...patch, id } : u)),
+          units: s.units.map((u) => (u.id === id ? { ...u, ...patch, id, updatedAt: nowISO() } : u)),
         })),
       deleteUnit: (id) =>
-        set((s) => ({
-          units: s.units.filter((u) => u.id !== id),
-          appliances: s.appliances.map((a) =>
-            a.unitId === id ? { ...a, unitId: undefined } : a,
-          ),
-          memberships: s.memberships.map((m) =>
-            m.unitIds ? { ...m, unitIds: m.unitIds.filter((u) => u !== id) } : m,
-          ),
-        })),
+        set((s) => {
+          const at = nowISO();
+          return {
+            units: s.units.filter((u) => u.id !== id),
+            appliances: s.appliances.map((a) =>
+              a.unitId === id ? { ...a, unitId: undefined, updatedAt: at } : a,
+            ),
+            memberships: s.memberships.map((m) =>
+              m.unitIds ? { ...m, unitIds: m.unitIds.filter((u) => u !== id), updatedAt: at } : m,
+            ),
+            deletions: [...s.deletions, { entity: 'unit' as const, id, deletedAt: at }],
+          };
+        }),
 
       addAppliance: (a, withDefaultSchedules) => {
         const id = uid();
@@ -283,44 +359,75 @@ export const useAppStore = create<AppState>()(
               title: d.title,
               intervalMonths: d.intervalMonths,
               lastDone: a.purchaseDate || today(),
+              updatedAt: nowISO(),
             }))
           : [];
         set((s) => ({
-          appliances: [...s.appliances, { ...a, id, createdAt: today() }],
+          appliances: [...s.appliances, { ...a, id, createdAt: today(), updatedAt: nowISO() }],
           schedules: [...s.schedules, ...newSchedules],
         }));
         return id;
       },
       updateAppliance: (id, patch) =>
         set((s) => ({
-          appliances: s.appliances.map((a) => (a.id === id ? { ...a, ...patch, id } : a)),
+          appliances: s.appliances.map((a) =>
+            a.id === id ? { ...a, ...patch, id, updatedAt: nowISO() } : a,
+          ),
         })),
       deleteAppliance: (id) =>
-        set((s) => ({
-          appliances: s.appliances.filter((a) => a.id !== id),
-          logs: s.logs.filter((l) => l.applianceId !== id),
-          schedules: s.schedules.filter((sc) => sc.applianceId !== id),
-        })),
+        set((s) => {
+          const at = nowISO();
+          return {
+            appliances: s.appliances.filter((a) => a.id !== id),
+            logs: s.logs.filter((l) => l.applianceId !== id),
+            schedules: s.schedules.filter((sc) => sc.applianceId !== id),
+            deletions: [
+              ...s.deletions,
+              { entity: 'appliance' as const, id, deletedAt: at },
+              ...s.logs
+                .filter((l) => l.applianceId === id)
+                .map((l) => ({ entity: 'log' as const, id: l.id, deletedAt: at })),
+              ...s.schedules
+                .filter((sc) => sc.applianceId === id)
+                .map((sc) => ({ entity: 'schedule' as const, id: sc.id, deletedAt: at })),
+            ],
+          };
+        }),
 
-      addLog: (l) => set((s) => ({ logs: [...s.logs, { ...l, id: uid() }] })),
+      addLog: (l) =>
+        set((s) => ({ logs: [...s.logs, { ...l, id: uid(), updatedAt: nowISO() }] })),
       updateLog: (id, patch) =>
         set((s) => ({
-          logs: s.logs.map((l) => (l.id === id ? { ...l, ...patch, id } : l)),
+          logs: s.logs.map((l) => (l.id === id ? { ...l, ...patch, id, updatedAt: nowISO() } : l)),
         })),
-      deleteLog: (id) => set((s) => ({ logs: s.logs.filter((l) => l.id !== id) })),
+      deleteLog: (id) =>
+        set((s) => ({
+          logs: s.logs.filter((l) => l.id !== id),
+          deletions: [...s.deletions, { entity: 'log' as const, id, deletedAt: nowISO() }],
+        })),
 
-      addSchedule: (sc) => set((s) => ({ schedules: [...s.schedules, { ...sc, id: uid() }] })),
+      addSchedule: (sc) =>
+        set((s) => ({
+          schedules: [...s.schedules, { ...sc, id: uid(), updatedAt: nowISO() }],
+        })),
       updateSchedule: (id, patch) =>
         set((s) => ({
-          schedules: s.schedules.map((sc) => (sc.id === id ? { ...sc, ...patch, id } : sc)),
+          schedules: s.schedules.map((sc) =>
+            sc.id === id ? { ...sc, ...patch, id, updatedAt: nowISO() } : sc,
+          ),
         })),
       deleteSchedule: (id) =>
-        set((s) => ({ schedules: s.schedules.filter((sc) => sc.id !== id) })),
+        set((s) => ({
+          schedules: s.schedules.filter((sc) => sc.id !== id),
+          deletions: [...s.deletions, { entity: 'schedule' as const, id, deletedAt: nowISO() }],
+        })),
       markScheduleDone: (id) => {
         const sc = get().schedules.find((x) => x.id === id);
         if (!sc) return;
         set((s) => ({
-          schedules: s.schedules.map((x) => (x.id === id ? { ...x, lastDone: today() } : x)),
+          schedules: s.schedules.map((x) =>
+            x.id === id ? { ...x, lastDone: today(), updatedAt: nowISO() } : x,
+          ),
           logs: [
             ...s.logs,
             {
@@ -329,12 +436,13 @@ export const useAppStore = create<AppState>()(
               date: today(),
               type: 'maintenance',
               description: sc.title,
+              updatedAt: nowISO(),
             },
           ],
         }));
       },
 
-      loadSampleData: () => set(buildSeedData()),
+      loadSampleData: () => set({ ...buildSeedData(), deletions: [], lastSyncAt: null }),
       resetAll: () =>
         set({
           organizations: [],
@@ -346,11 +454,13 @@ export const useAppStore = create<AppState>()(
           appliances: [],
           logs: [],
           schedules: [],
+          deletions: [],
+          lastSyncAt: null,
         }),
     }),
     {
       name: 'appliance-tracker-v1',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({
         organizations: s.organizations,
@@ -362,6 +472,8 @@ export const useAppStore = create<AppState>()(
         appliances: s.appliances,
         logs: s.logs,
         schedules: s.schedules,
+        deletions: s.deletions,
+        lastSyncAt: s.lastSyncAt,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Partial<AppState>;
@@ -385,6 +497,10 @@ export const useAppStore = create<AppState>()(
         }
         if (version < 2) {
           state.units = state.units ?? [];
+        }
+        if (version < 3) {
+          state.deletions = state.deletions ?? [];
+          state.lastSyncAt = state.lastSyncAt ?? null;
         }
         return state;
       },
@@ -461,6 +577,40 @@ export function useOrgData() {
   const logs = allLogs.filter((l) => applianceIds.has(l.applianceId));
   const schedules = allSchedules.filter((sc) => applianceIds.has(sc.applianceId));
   return { properties, units, appliances, logs, schedules };
+}
+
+/**
+ * Number of local changes not yet pushed to a backend: records created or
+ * updated since the last sync, plus pending deletions.
+ */
+export function usePendingChanges(): number {
+  const lastSyncAt = useAppStore((s) => s.lastSyncAt);
+  const organizations = useAppStore((s) => s.organizations);
+  const users = useAppStore((s) => s.users);
+  const memberships = useAppStore((s) => s.memberships);
+  const properties = useAppStore((s) => s.properties);
+  const units = useAppStore((s) => s.units);
+  const appliances = useAppStore((s) => s.appliances);
+  const logs = useAppStore((s) => s.logs);
+  const schedules = useAppStore((s) => s.schedules);
+  const deletions = useAppStore((s) => s.deletions);
+
+  const isPending = (updatedAt?: string) =>
+    !!updatedAt && (!lastSyncAt || updatedAt > lastSyncAt);
+  const all: { updatedAt?: string }[] = [
+    ...organizations,
+    ...users,
+    ...memberships,
+    ...properties,
+    ...units,
+    ...appliances,
+    ...logs,
+    ...schedules,
+  ];
+  return (
+    all.filter((x) => isPending(x.updatedAt)).length +
+    deletions.filter((d) => !lastSyncAt || d.deletedAt > lastSyncAt).length
+  );
 }
 
 /** All schedules joined with appliance/property info and due dates, soonest first. */

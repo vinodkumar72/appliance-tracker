@@ -5,6 +5,11 @@ export function today(): string {
   return toISODate(new Date());
 }
 
+/** Full ISO timestamp — used to stamp changes for sync. */
+export function nowISO(): string {
+  return new Date().toISOString();
+}
+
 export function toISODate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');

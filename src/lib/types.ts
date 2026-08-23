@@ -1,3 +1,23 @@
+﻿/** Set on every create/update; the sync engine pushes records newer than the last sync. */
+export interface Syncable {
+  updatedAt?: string; // full ISO timestamp
+}
+
+/** Tombstone recording a local delete so it can be replayed against the server. */
+export interface DeletionRecord {
+  entity:
+    | 'organization'
+    | 'user'
+    | 'membership'
+    | 'property'
+    | 'unit'
+    | 'appliance'
+    | 'log'
+    | 'schedule';
+  id: string;
+  deletedAt: string; // full ISO timestamp
+}
+
 export type ApplianceType =
   | 'refrigerator'
   | 'hvac'
@@ -12,13 +32,13 @@ export type ApplianceType =
 
 export type Role = 'owner' | 'admin' | 'manager' | 'technician' | 'viewer' | 'investor';
 
-export interface Organization {
+export interface Organization extends Syncable {
   id: string;
   name: string;
   createdAt: string;
 }
 
-export interface User {
+export interface User extends Syncable {
   id: string;
   name: string;
   email: string;
@@ -31,7 +51,7 @@ export interface User {
 }
 
 /** Links a user to an organization with a role. A user can belong to many orgs. */
-export interface Membership {
+export interface Membership extends Syncable {
   id: string;
   orgId: string;
   userId: string;
@@ -63,7 +83,7 @@ export interface OwnerContact {
   ownerMailingAddress?: string;
 }
 
-export interface Property extends OwnerContact {
+export interface Property extends OwnerContact, Syncable {
   id: string;
   orgId: string;
   name: string;
@@ -76,7 +96,7 @@ export interface Property extends OwnerContact {
  * A rentable unit inside a property (e.g. "Unit 2B"). In a condominium
  * complex each unit can carry its own owner contact.
  */
-export interface Unit extends OwnerContact {
+export interface Unit extends OwnerContact, Syncable {
   id: string;
   propertyId: string;
   name: string;
@@ -84,7 +104,7 @@ export interface Unit extends OwnerContact {
   createdAt: string;
 }
 
-export interface Appliance {
+export interface Appliance extends Syncable {
   id: string;
   propertyId: string;
   /** Unit the appliance lives in; undefined = building / common area. */
@@ -103,7 +123,7 @@ export interface Appliance {
 
 export type LogType = 'repair' | 'maintenance' | 'inspection' | 'replacement';
 
-export interface MaintenanceLog {
+export interface MaintenanceLog extends Syncable {
   id: string;
   applianceId: string;
   date: string; // YYYY-MM-DD
@@ -113,12 +133,12 @@ export interface MaintenanceLog {
   vendor?: string;
 }
 
-export interface Schedule {
+export interface Schedule extends Syncable {
   id: string;
   applianceId: string;
   title: string;
   intervalMonths: number;
-  lastDone: string; // YYYY-MM-DD — interval counts from this date
+  lastDone: string; // YYYY-MM-DD - interval counts from this date
 }
 
 export interface ScheduleWithDue extends Schedule {

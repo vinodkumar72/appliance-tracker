@@ -6,7 +6,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructive } from '@/lib/confirm';
 import { can, ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/permissions';
-import { useAppStore, useSessionInfo } from '@/lib/store';
+import { useAppStore, usePendingChanges, useSessionInfo } from '@/lib/store';
 
 export default function OrganizationScreen() {
   const theme = useTheme();
@@ -31,6 +31,8 @@ export default function OrganizationScreen() {
 
   const platformAdmin = users.find((u) => u.isPlatformAdmin);
   const canManageMembers = can(role, 'manageUsers') || isPlatformAdmin;
+  const pendingChanges = usePendingChanges();
+  const lastSyncAt = useAppStore((s) => s.lastSyncAt);
 
   if (!currentOrg) {
     return (
@@ -232,6 +234,30 @@ export default function OrganizationScreen() {
           </View>
         </Card>
       ))}
+
+      <SectionHeader title="Sync" />
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+          <Badge label="offline-first" tone="success" />
+          {pendingChanges > 0 ? (
+            <Badge label={`${pendingChanges} change${pendingChanges === 1 ? '' : 's'} pending`} tone="warning" />
+          ) : (
+            <Badge label="nothing pending" />
+          )}
+        </View>
+        <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+          Every change is saved on this device instantly — the app works fully without internet.
+          {lastSyncAt
+            ? ` Last synced ${new Date(lastSyncAt).toLocaleString()}.`
+            : ' Sign in to back up and sync across devices.'}
+        </Text>
+        <Button
+          title="Account & sync"
+          variant="secondary"
+          compact
+          onPress={() => router.push('/account')}
+        />
+      </Card>
 
       <SectionHeader title="Demo data" />
       <Card>
