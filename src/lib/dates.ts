@@ -29,6 +29,12 @@ export function isValidISODate(s: string): boolean {
   return !Number.isNaN(d.getTime()) && toISODate(d) === s;
 }
 
+export function addDays(iso: string, days: number): string {
+  const d = parseISODate(iso);
+  d.setDate(d.getDate() + days);
+  return toISODate(d);
+}
+
 export function addMonths(iso: string, months: number): string {
   const d = parseISODate(iso);
   const targetDay = d.getDate();

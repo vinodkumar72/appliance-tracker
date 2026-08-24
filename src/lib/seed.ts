@@ -1,12 +1,14 @@
-import { addMonths, today } from './dates';
+import { addDays, addMonths, today } from './dates';
 import type {
   Appliance,
   MaintenanceLog,
   Membership,
   Organization,
+  Plan,
   Property,
   Schedule,
   Session,
+  Subscription,
   Unit,
   User,
 } from './types';
@@ -26,6 +28,8 @@ export function buildSeedData(): {
   appliances: Appliance[];
   logs: MaintenanceLog[];
   schedules: Schedule[];
+  plans: Plan[];
+  subscriptions: Subscription[];
 } {
   const t = today();
   const monthsAgo = (n: number) => addMonths(t, -n);
@@ -161,6 +165,7 @@ export function buildSeedData(): {
       model: 'WRF535SWHZ',
       serialNumber: 'WH8834021',
       purchaseDate: monthsAgo(30),
+      purchasePrice: 1499,
       warrantyExpiry: monthsAhead(2),
       warrantyProvider: 'Whirlpool factory warranty',
       createdAt: monthsAgo(18),
@@ -197,6 +202,7 @@ export function buildSeedData(): {
       brand: 'LG',
       model: 'WM4000HWA',
       purchaseDate: monthsAgo(8),
+      purchasePrice: 899,
       warrantyExpiry: monthsAhead(4),
       warrantyProvider: 'LG 1-year parts & labor',
       createdAt: monthsAgo(8),
@@ -210,6 +216,7 @@ export function buildSeedData(): {
       model: 'SHXM4AY55N',
       serialNumber: 'BO552198',
       purchaseDate: monthsAgo(4),
+      purchasePrice: 1049,
       warrantyExpiry: monthsAhead(8),
       warrantyProvider: 'Bosch 1-year',
       createdAt: monthsAgo(4),
@@ -329,5 +336,43 @@ export function buildSeedData(): {
     },
   ];
 
-  return { organizations, users, memberships, session, properties, units, appliances, logs, schedules };
+  const plans: Plan[] = [
+    { id: 'plan-free', name: 'Free', yearlyPrice: 0, maxProperties: 5, trialDays: 0, createdAt: monthsAgo(6) },
+    { id: 'plan-pro', name: 'Pro', yearlyPrice: 499, maxProperties: 50, trialDays: 14, createdAt: monthsAgo(6) },
+    { id: 'plan-enterprise', name: 'Enterprise', yearlyPrice: 1499, trialDays: 30, createdAt: monthsAgo(6) },
+  ];
+
+  const subscriptions: Subscription[] = [
+    // Acme is mid-trial on Pro — 10 days left.
+    {
+      id: 'sub-acme',
+      orgId: 'org-acme',
+      planId: 'plan-pro',
+      status: 'trial',
+      startedAt: addDays(t, -4),
+      trialEndsAt: addDays(t, 10),
+    },
+    // Blue Door sits on the free tier.
+    {
+      id: 'sub-bluedoor',
+      orgId: 'org-bluedoor',
+      planId: 'plan-free',
+      status: 'active',
+      startedAt: monthsAgo(6),
+    },
+  ];
+
+  return {
+    organizations,
+    users,
+    memberships,
+    session,
+    properties,
+    units,
+    appliances,
+    logs,
+    schedules,
+    plans,
+    subscriptions,
+  };
 }

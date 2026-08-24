@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { addMonths, daysUntil, nowISO, today } from './dates';
+import { addDays, addMonths, daysUntil, nowISO, today } from './dates';
 import { APPLIANCE_TYPES } from './defaults';
 import { buildSeedData } from './seed';
 import type {
@@ -11,11 +11,13 @@ import type {
   MaintenanceLog,
   Membership,
   Organization,
+  Plan,
   Property,
   Role,
   Schedule,
   ScheduleWithDue,
   Session,
+  Subscription,
   Unit,
   User,
 } from './types';
@@ -34,6 +36,8 @@ interface AppState {
   appliances: Appliance[];
   logs: MaintenanceLog[];
   schedules: Schedule[];
+  plans: Plan[];
+  subscriptions: Subscription[];
   /** Tombstones for local deletes, replayed against the server on sync. */
   deletions: DeletionRecord[];
   /** When this device last synced with the backend; null = never / no backend yet. */
@@ -67,6 +71,13 @@ interface AppState {
     patch: { role?: Role; propertyIds?: string[] | null; unitIds?: string[] | null },
   ) => void;
   removeMember: (membershipId: string) => void;
+
+  addPlan: (p: Omit<Plan, 'id' | 'createdAt'>) => string;
+  updatePlan: (id: string, patch: Partial<Plan>) => void;
+  /** Deletes the plan; any subscriptions to it are removed (orgs fall back to the free tier). */
+  deletePlan: (id: string) => void;
+  /** Assigns a plan to an org: 'trial' starts the plan's trial, 'active' starts a paid year (or free). */
+  setSubscription: (orgId: string, planId: string, mode: 'trial' | 'active') => void;
 
   addProperty: (p: Omit<Property, 'id' | 'orgId' | 'createdAt'>) => string;
   updateProperty: (id: string, patch: Partial<Property>) => void;
@@ -109,9 +120,64 @@ export const useAppStore = create<AppState>()(
       appliances: [],
       logs: [],
       schedules: [],
+      plans: [],
+      subscriptions: [],
       deletions: [],
       lastSyncAt: null,
       hydrated: false,
+
+      addPlan: (p) => {
+        const id = uid();
+        set((s) => ({
+          plans: [...s.plans, { ...p, id, createdAt: today(), updatedAt: nowISO() }],
+        }));
+        return id;
+      },
+      updatePlan: (id, patch) =>
+        set((s) => ({
+          plans: s.plans.map((p) => (p.id === id ? { ...p, ...patch, id, updatedAt: nowISO() } : p)),
+        })),
+      deletePlan: (id) =>
+        set((s) => {
+          const at = nowISO();
+          const orphanedSubs = s.subscriptions.filter((sub) => sub.planId === id);
+          return {
+            plans: s.plans.filter((p) => p.id !== id),
+            subscriptions: s.subscriptions.filter((sub) => sub.planId !== id),
+            deletions: [
+              ...s.deletions,
+              { entity: 'plan' as const, id, deletedAt: at },
+              ...orphanedSubs.map((sub) => ({
+                entity: 'subscription' as const,
+                id: sub.id,
+                deletedAt: at,
+              })),
+            ],
+          };
+        }),
+      setSubscription: (orgId, planId, mode) =>
+        set((s) => {
+          const plan = s.plans.find((p) => p.id === planId);
+          if (!plan) return s;
+          const existing = s.subscriptions.find((x) => x.orgId === orgId);
+          const sub: Subscription = {
+            id: existing?.id ?? uid(),
+            orgId,
+            planId,
+            status: mode,
+            startedAt: today(),
+            ...(mode === 'trial' ? { trialEndsAt: addDays(today(), plan.trialDays) } : {}),
+            ...(mode === 'active' && plan.yearlyPrice > 0
+              ? { currentPeriodEnd: addDays(today(), 365) }
+              : {}),
+            updatedAt: nowISO(),
+          };
+          return {
+            subscriptions: existing
+              ? s.subscriptions.map((x) => (x.id === sub.id ? sub : x))
+              : [...s.subscriptions, sub],
+          };
+        }),
 
       bootstrapPlatformAdmin: (name, email) => {
         const id = uid();
@@ -158,6 +224,10 @@ export const useAppStore = create<AppState>()(
                   updatedAt: nowISO(),
                 },
               ];
+          // New companies start on the most generous free tier, when one exists.
+          const freePlan = s.plans
+            .filter((p) => p.yearlyPrice === 0)
+            .sort((a, b) => (b.maxProperties ?? Infinity) - (a.maxProperties ?? Infinity))[0];
           return {
             organizations: [
               ...s.organizations,
@@ -168,6 +238,19 @@ export const useAppStore = create<AppState>()(
               ...s.memberships,
               { id: uid(), orgId, userId: ownerId, role: 'owner' as Role, updatedAt: nowISO() },
             ],
+            subscriptions: freePlan
+              ? [
+                  ...s.subscriptions,
+                  {
+                    id: uid(),
+                    orgId,
+                    planId: freePlan.id,
+                    status: 'active' as const,
+                    startedAt: today(),
+                    updatedAt: nowISO(),
+                  },
+                ]
+              : s.subscriptions,
             session: { ...s.session, currentOrgId: orgId },
           };
         });
@@ -454,13 +537,15 @@ export const useAppStore = create<AppState>()(
           appliances: [],
           logs: [],
           schedules: [],
+          plans: [],
+          subscriptions: [],
           deletions: [],
           lastSyncAt: null,
         }),
     }),
     {
       name: 'appliance-tracker-v1',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({
         organizations: s.organizations,
@@ -472,6 +557,8 @@ export const useAppStore = create<AppState>()(
         appliances: s.appliances,
         logs: s.logs,
         schedules: s.schedules,
+        plans: s.plans,
+        subscriptions: s.subscriptions,
         deletions: s.deletions,
         lastSyncAt: s.lastSyncAt,
       }),
@@ -501,6 +588,10 @@ export const useAppStore = create<AppState>()(
         if (version < 3) {
           state.deletions = state.deletions ?? [];
           state.lastSyncAt = state.lastSyncAt ?? null;
+        }
+        if (version < 4) {
+          state.plans = state.plans ?? [];
+          state.subscriptions = state.subscriptions ?? [];
         }
         return state;
       },
@@ -593,6 +684,8 @@ export function usePendingChanges(): number {
   const appliances = useAppStore((s) => s.appliances);
   const logs = useAppStore((s) => s.logs);
   const schedules = useAppStore((s) => s.schedules);
+  const plans = useAppStore((s) => s.plans);
+  const subscriptions = useAppStore((s) => s.subscriptions);
   const deletions = useAppStore((s) => s.deletions);
 
   const isPending = (updatedAt?: string) =>
@@ -606,6 +699,8 @@ export function usePendingChanges(): number {
     ...appliances,
     ...logs,
     ...schedules,
+    ...plans,
+    ...subscriptions,
   ];
   return (
     all.filter((x) => isPending(x.updatedAt)).length +

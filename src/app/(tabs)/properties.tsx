@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, EmptyState, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useOrgPlan } from '@/lib/billing';
 import { can } from '@/lib/permissions';
 import { getSchedulesWithDue, useOrgData, useSessionInfo } from '@/lib/store';
 
@@ -11,7 +12,9 @@ export default function PropertiesScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { properties, appliances, schedules } = useOrgData();
-  const { role, isPropertyScoped } = useSessionInfo();
+  const { role, isPropertyScoped, currentOrg } = useSessionInfo();
+  const planInfo = useOrgPlan(currentOrg?.id);
+  const atLimit = planInfo?.atLimit ?? false;
   // Property-scoped members can't create properties — a new one would be outside their grant.
   const canEdit = can(role, 'editProperties') && !isPropertyScoped;
 
@@ -32,7 +35,26 @@ export default function PropertiesScreen() {
 
   return (
     <Screen>
-      {canEdit ? <Button title="+ Add property" onPress={() => router.push('/property-form')} /> : null}
+      {canEdit && atLimit && planInfo ? (
+        <View
+          style={{
+            backgroundColor: theme.backgroundElement,
+            borderRadius: 12,
+            padding: 12,
+            gap: 4,
+          }}>
+          <Text style={{ color: theme.warning, fontSize: 14, fontWeight: '600' }}>
+            Plan limit reached ({planInfo.propertyCount}/{planInfo.effectiveMax} properties)
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+            The {planInfo.plan?.name ?? 'current'} plan allows {planInfo.effectiveMax} properties.
+            Upgrade the plan to add more.
+          </Text>
+        </View>
+      ) : null}
+      {canEdit && !atLimit ? (
+        <Button title="+ Add property" onPress={() => router.push('/property-form')} />
+      ) : null}
       {properties.map((p) => {
         const applianceCount = appliances.filter((a) => a.propertyId === p.id).length;
         const overdueCount = tasks.filter((t) => t.propertyId === p.id && t.daysUntilDue < 0).length;

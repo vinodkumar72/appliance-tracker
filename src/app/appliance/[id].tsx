@@ -79,6 +79,9 @@ export default function ApplianceDetailScreen() {
           appliance.model ? ['Model', appliance.model] : null,
           appliance.serialNumber ? ['Serial #', appliance.serialNumber] : null,
           appliance.purchaseDate ? ['Purchased', formatDate(appliance.purchaseDate)] : null,
+          appliance.purchasePrice != null
+            ? ['Purchase price', `$${appliance.purchasePrice.toFixed(2)}`]
+            : null,
         ]
           .filter((x): x is [string, string] => x !== null)
           .map(([label, value]) => (

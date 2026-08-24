@@ -13,9 +13,35 @@ export interface DeletionRecord {
     | 'unit'
     | 'appliance'
     | 'log'
-    | 'schedule';
+    | 'schedule'
+    | 'plan'
+    | 'subscription';
   id: string;
   deletedAt: string; // full ISO timestamp
+}
+
+/** A pricing tier, configured by the platform owner. */
+export interface Plan extends Syncable {
+  id: string;
+  name: string;
+  /** 0 = free tier. */
+  yearlyPrice: number;
+  /** Property limit; undefined = unlimited. */
+  maxProperties?: number;
+  /** Trial length when a company starts on this plan; 0 = no trial. */
+  trialDays: number;
+  createdAt: string;
+}
+
+/** A company's subscription to a plan. One per organization. */
+export interface Subscription extends Syncable {
+  id: string;
+  orgId: string;
+  planId: string;
+  status: 'trial' | 'active';
+  startedAt: string; // YYYY-MM-DD
+  trialEndsAt?: string; // YYYY-MM-DD, for trials
+  currentPeriodEnd?: string; // YYYY-MM-DD, for paid yearly subscriptions
 }
 
 export type ApplianceType =
@@ -115,6 +141,7 @@ export interface Appliance extends Syncable {
   model?: string;
   serialNumber?: string;
   purchaseDate?: string; // YYYY-MM-DD
+  purchasePrice?: number;
   warrantyExpiry?: string; // YYYY-MM-DD
   warrantyProvider?: string;
   notes?: string;

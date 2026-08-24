@@ -71,6 +71,7 @@ create table public.appliances (
   model text,
   serial_number text,
   purchase_date text,
+  purchase_price numeric,
   warranty_expiry text,
   warranty_provider text,
   notes text,
@@ -98,9 +99,32 @@ create table public.schedules (
   updated_at timestamptz not null default now()
 );
 
+-- Pricing tiers configured by the platform owner.
+create table public.plans (
+  id text primary key,
+  name text not null,
+  yearly_price numeric not null default 0,
+  max_properties integer,           -- null = unlimited
+  trial_days integer not null default 0,
+  created_at text,
+  updated_at timestamptz not null default now()
+);
+
+-- One subscription per organization.
+create table public.subscriptions (
+  id text primary key,
+  org_id text not null unique references public.organizations (id) on delete cascade,
+  plan_id text not null references public.plans (id) on delete cascade,
+  status text not null check (status in ('trial','active')),
+  started_at text,
+  trial_ends_at text,
+  current_period_end text,
+  updated_at timestamptz not null default now()
+);
+
 -- Deletion tombstones so offline devices learn about deletes made elsewhere.
 create table public.deletions (
-  entity text not null check (entity in ('organization','user','membership','property','unit','appliance','log','schedule')),
+  entity text not null check (entity in ('organization','user','membership','property','unit','appliance','log','schedule','plan','subscription')),
   id text not null,
   org_id text,
   deleted_at timestamptz not null default now(),
@@ -245,7 +269,29 @@ alter table public.units enable row level security;
 alter table public.appliances enable row level security;
 alter table public.maintenance_logs enable row level security;
 alter table public.schedules enable row level security;
+alter table public.plans enable row level security;
+alter table public.subscriptions enable row level security;
 alter table public.deletions enable row level security;
+
+-- plans: everyone signed in can read the pricing; only the platform owner edits.
+create policy plans_select on public.plans for select
+  using (auth.uid() is not null);
+create policy plans_insert on public.plans for insert
+  with check (public.is_platform_admin());
+create policy plans_update on public.plans for update
+  using (public.is_platform_admin());
+create policy plans_delete on public.plans for delete
+  using (public.is_platform_admin());
+
+-- subscriptions: visible to the org's members; only the platform owner manages them.
+create policy subscriptions_select on public.subscriptions for select
+  using (public.is_platform_admin() or public.my_role(org_id) is not null);
+create policy subscriptions_insert on public.subscriptions for insert
+  with check (public.is_platform_admin());
+create policy subscriptions_update on public.subscriptions for update
+  using (public.is_platform_admin());
+create policy subscriptions_delete on public.subscriptions for delete
+  using (public.is_platform_admin());
 
 -- app_users: see yourself, platform admin, and people you share a company with.
 create policy users_select on public.app_users for select

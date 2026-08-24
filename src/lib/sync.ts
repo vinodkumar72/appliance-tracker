@@ -7,8 +7,10 @@ import type {
   MaintenanceLog,
   Membership,
   Organization,
+  Plan,
   Property,
   Schedule,
+  Subscription,
   Unit,
   User,
 } from './types';
@@ -132,6 +134,7 @@ const toApplianceRow = (a: Appliance): Row => ({
   model: nul(a.model),
   serial_number: nul(a.serialNumber),
   purchase_date: nul(a.purchaseDate),
+  purchase_price: a.purchasePrice ?? null,
   warranty_expiry: nul(a.warrantyExpiry),
   warranty_provider: nul(a.warrantyProvider),
   notes: nul(a.notes),
@@ -148,6 +151,7 @@ const fromApplianceRow = (r: Row): Appliance => ({
   model: und(r.model),
   serialNumber: und(r.serial_number),
   purchaseDate: und(r.purchase_date),
+  purchasePrice: r.purchase_price === null ? undefined : Number(r.purchase_price),
   warrantyExpiry: und(r.warranty_expiry),
   warrantyProvider: und(r.warranty_provider),
   notes: und(r.notes),
@@ -193,6 +197,46 @@ const fromScheduleRow = (r: Row): Schedule => ({
   updatedAt: r.updated_at,
 });
 
+const toPlanRow = (p: Plan): Row => ({
+  id: p.id,
+  name: p.name,
+  yearly_price: p.yearlyPrice,
+  max_properties: p.maxProperties ?? null,
+  trial_days: p.trialDays,
+  created_at: nul(p.createdAt),
+  updated_at: p.updatedAt ?? new Date(0).toISOString(),
+});
+const fromPlanRow = (r: Row): Plan => ({
+  id: r.id,
+  name: r.name,
+  yearlyPrice: Number(r.yearly_price),
+  maxProperties: r.max_properties === null ? undefined : Number(r.max_properties),
+  trialDays: Number(r.trial_days),
+  createdAt: r.created_at ?? today(),
+  updatedAt: r.updated_at,
+});
+
+const toSubscriptionRow = (s: Subscription): Row => ({
+  id: s.id,
+  org_id: s.orgId,
+  plan_id: s.planId,
+  status: s.status,
+  started_at: s.startedAt,
+  trial_ends_at: nul(s.trialEndsAt),
+  current_period_end: nul(s.currentPeriodEnd),
+  updated_at: s.updatedAt ?? new Date(0).toISOString(),
+});
+const fromSubscriptionRow = (r: Row): Subscription => ({
+  id: r.id,
+  orgId: r.org_id,
+  planId: r.plan_id,
+  status: r.status,
+  startedAt: r.started_at,
+  trialEndsAt: und(r.trial_ends_at),
+  currentPeriodEnd: und(r.current_period_end),
+  updatedAt: r.updated_at,
+});
+
 const ENTITY_TABLES: Record<DeletionRecord['entity'], string> = {
   organization: 'organizations',
   user: 'app_users',
@@ -202,6 +246,8 @@ const ENTITY_TABLES: Record<DeletionRecord['entity'], string> = {
   appliance: 'appliances',
   log: 'maintenance_logs',
   schedule: 'schedules',
+  plan: 'plans',
+  subscription: 'subscriptions',
 };
 
 // ---------- auth linking ----------
@@ -362,7 +408,9 @@ export async function syncNow(): Promise<SyncResult> {
       ),
       true,
     );
+    await pushTable('plans', pending(s.plans).map(toPlanRow));
     await pushTable('organizations', pending(s.organizations).map(toOrgRow));
+    await pushTable('subscriptions', pending(s.subscriptions).map(toSubscriptionRow));
     await pushTable('memberships', pending(s.memberships).map(toMembershipRow));
     await pushTable('properties', pending(s.properties).map(toPropertyRow));
     await pushTable('units', pending(s.units).map(toUnitRow));
@@ -380,17 +428,29 @@ export async function syncNow(): Promise<SyncResult> {
       return (data ?? []).map(fromRow);
     };
 
-    const [rUsers, rOrgs, rMemberships, rProperties, rUnits, rAppliances, rLogs, rSchedules] =
-      await Promise.all([
-        pullTable('app_users', fromUserRow),
-        pullTable('organizations', fromOrgRow),
-        pullTable('memberships', fromMembershipRow),
-        pullTable('properties', fromPropertyRow),
-        pullTable('units', fromUnitRow),
-        pullTable('appliances', fromApplianceRow),
-        pullTable('maintenance_logs', fromLogRow),
-        pullTable('schedules', fromScheduleRow),
-      ]);
+    const [
+      rUsers,
+      rOrgs,
+      rMemberships,
+      rProperties,
+      rUnits,
+      rAppliances,
+      rLogs,
+      rSchedules,
+      rPlans,
+      rSubscriptions,
+    ] = await Promise.all([
+      pullTable('app_users', fromUserRow),
+      pullTable('organizations', fromOrgRow),
+      pullTable('memberships', fromMembershipRow),
+      pullTable('properties', fromPropertyRow),
+      pullTable('units', fromUnitRow),
+      pullTable('appliances', fromApplianceRow),
+      pullTable('maintenance_logs', fromLogRow),
+      pullTable('schedules', fromScheduleRow),
+      pullTable('plans', fromPlanRow),
+      pullTable('subscriptions', fromSubscriptionRow),
+    ]);
 
     const { data: remoteDeletions, error: delError } = await supabase
       .from('deletions')
@@ -419,7 +479,8 @@ export async function syncNow(): Promise<SyncResult> {
     const st = useAppStore.getState();
     const pulled =
       rUsers.length + rOrgs.length + rMemberships.length + rProperties.length +
-      rUnits.length + rAppliances.length + rLogs.length + rSchedules.length;
+      rUnits.length + rAppliances.length + rLogs.length + rSchedules.length +
+      rPlans.length + rSubscriptions.length;
     useAppStore.setState({
       users: merge(st.users, rUsers, 'user'),
       organizations: merge(st.organizations, rOrgs, 'organization'),
@@ -429,6 +490,8 @@ export async function syncNow(): Promise<SyncResult> {
       appliances: merge(st.appliances, rAppliances, 'appliance'),
       logs: merge(st.logs, rLogs, 'log'),
       schedules: merge(st.schedules, rSchedules, 'schedule'),
+      plans: merge(st.plans, rPlans, 'plan'),
+      subscriptions: merge(st.subscriptions, rSubscriptions, 'subscription'),
       lastSyncAt: syncStartedAt,
     });
 

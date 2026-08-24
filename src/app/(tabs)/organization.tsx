@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { describePlanStatus, getPlanStatus, useOrgPlan } from '@/lib/billing';
 import { confirmDestructive } from '@/lib/confirm';
 import { can, ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/permissions';
 import { useAppStore, usePendingChanges, useSessionInfo } from '@/lib/store';
@@ -33,6 +34,9 @@ export default function OrganizationScreen() {
   const canManageMembers = can(role, 'manageUsers') || isPlatformAdmin;
   const pendingChanges = usePendingChanges();
   const lastSyncAt = useAppStore((s) => s.lastSyncAt);
+  const plans = useAppStore((s) => s.plans);
+  const subscriptions = useAppStore((s) => s.subscriptions);
+  const currentOrgPlan = useOrgPlan(currentOrg?.id);
 
   if (!currentOrg) {
     return (
@@ -108,13 +112,125 @@ export default function OrganizationScreen() {
                 {propertyCount} propert{propertyCount === 1 ? 'y' : 'ies'} · {memberCount} member
                 {memberCount === 1 ? '' : 's'}
               </Text>
+              {plans.length > 0 ? (
+                <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                  <Badge
+                    label={describePlanStatus(getPlanStatus(plans, subscriptions, org.id))}
+                    tone={
+                      (() => {
+                        const st = getPlanStatus(plans, subscriptions, org.id).status;
+                        return st === 'active'
+                          ? 'success'
+                          : st === 'trial'
+                            ? 'warning'
+                            : st === 'expired'
+                              ? 'danger'
+                              : 'neutral';
+                      })()
+                    }
+                  />
+                </View>
+              ) : null}
             </View>
-            {selected ? <Badge label="current" tone="tint" /> : null}
+            <View style={{ gap: 6, alignItems: 'flex-end' }}>
+              {selected ? <Badge label="current" tone="tint" /> : null}
+              {isPlatformAdmin ? (
+                <Button
+                  title="Plan"
+                  variant="secondary"
+                  compact
+                  onPress={() => router.push(`/subscription-form?orgId=${org.id}`)}
+                />
+              ) : null}
+            </View>
           </Pressable>
         );
       })}
       {isPlatformAdmin ? (
         <Button title="+ Onboard company" onPress={() => router.push('/org-form')} />
+      ) : null}
+
+      {isPlatformAdmin ? (
+        <>
+          <SectionHeader
+            title={`Plans (${plans.length})`}
+            right={<Button title="+ New plan" compact onPress={() => router.push('/plan-form')} />}
+          />
+          {plans.length === 0 ? (
+            <Card>
+              <Text style={{ color: theme.textSecondary }}>
+                No pricing tiers yet. Create a free tier (e.g. up to 5 properties) and paid tiers —
+                companies are limited by their plan.
+              </Text>
+            </Card>
+          ) : (
+            plans.map((plan) => {
+              const subscriberCount = subscriptions.filter((sub) => sub.planId === plan.id).length;
+              return (
+                <Pressable
+                  key={plan.id}
+                  onPress={() => router.push(`/plan-form?id=${plan.id}`)}
+                  style={({ pressed }) => [
+                    styles.orgRow,
+                    {
+                      backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
+                      borderColor: 'transparent',
+                    },
+                  ]}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ color: theme.text, fontSize: 15, fontWeight: '700' }}>
+                      {plan.name}
+                    </Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                      {plan.yearlyPrice === 0 ? 'Free' : `$${plan.yearlyPrice}/year`} ·{' '}
+                      {plan.maxProperties != null
+                        ? `up to ${plan.maxProperties} properties`
+                        : 'unlimited properties'}
+                      {plan.trialDays > 0 ? ` · ${plan.trialDays}-day trial` : ''} ·{' '}
+                      {subscriberCount} compan{subscriberCount === 1 ? 'y' : 'ies'}
+                    </Text>
+                  </View>
+                  <Text style={{ color: theme.textSecondary, fontSize: 20 }}>›</Text>
+                </Pressable>
+              );
+            })
+          )}
+        </>
+      ) : null}
+
+      {currentOrgPlan && currentOrgPlan.status !== 'none' ? (
+        <>
+          <SectionHeader title="Subscription" />
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.two }}>
+              <Badge
+                label={describePlanStatus(currentOrgPlan)}
+                tone={
+                  currentOrgPlan.status === 'active'
+                    ? 'success'
+                    : currentOrgPlan.status === 'trial'
+                      ? 'warning'
+                      : currentOrgPlan.status === 'expired'
+                        ? 'danger'
+                        : 'neutral'
+                }
+              />
+            </View>
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+              {currentOrgPlan.propertyCount} of{' '}
+              {currentOrgPlan.effectiveMax != null ? currentOrgPlan.effectiveMax : 'unlimited'}{' '}
+              properties used.
+              {currentOrgPlan.status === 'expired'
+                ? ' The paid plan lapsed, so free-tier limits apply — existing data is untouched.'
+                : ''}
+            </Text>
+            {!isPlatformAdmin ? (
+              <Text style={{ color: theme.textSecondary, fontSize: 12, fontStyle: 'italic' }}>
+                Contact your platform provider to change plans.
+              </Text>
+            ) : null}
+          </Card>
+        </>
       ) : null}
 
       <SectionHeader title="Signed in as" />

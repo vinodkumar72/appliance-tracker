@@ -20,6 +20,8 @@ export default function RootLayout() {
         <Stack.Screen name="org-form" options={{ title: 'Company', presentation: 'modal' }} />
         <Stack.Screen name="platform-setup" options={{ title: 'Platform setup', presentation: 'modal' }} />
         <Stack.Screen name="account" options={{ title: 'Account & sync', presentation: 'modal' }} />
+        <Stack.Screen name="plan-form" options={{ title: 'Plan', presentation: 'modal' }} />
+        <Stack.Screen name="subscription-form" options={{ title: 'Subscription', presentation: 'modal' }} />
         <Stack.Screen name="member-form" options={{ title: 'Member', presentation: 'modal' }} />
       </Stack>
       <StatusBar style="auto" />

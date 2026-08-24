@@ -37,11 +37,19 @@ export default function ApplianceFormScreen() {
   const [model, setModel] = useState(existing?.model ?? '');
   const [serialNumber, setSerialNumber] = useState(existing?.serialNumber ?? '');
   const [purchaseDate, setPurchaseDate] = useState(existing?.purchaseDate ?? '');
+  const [purchasePrice, setPurchasePrice] = useState(
+    existing?.purchasePrice != null ? String(existing.purchasePrice) : '',
+  );
   const [warrantyExpiry, setWarrantyExpiry] = useState(existing?.warrantyExpiry ?? '');
   const [warrantyProvider, setWarrantyProvider] = useState(existing?.warrantyProvider ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [withDefaults, setWithDefaults] = useState(true);
-  const [errors, setErrors] = useState<{ name?: string; purchaseDate?: string; warrantyExpiry?: string }>({});
+  const [errors, setErrors] = useState<{
+    name?: string;
+    purchaseDate?: string;
+    purchasePrice?: string;
+    warrantyExpiry?: string;
+  }>({});
 
   if (!can(role, 'editProperties')) {
     return (
@@ -63,6 +71,12 @@ export default function ApplianceFormScreen() {
     if (!name.trim()) nextErrors.name = 'Name is required.';
     if (purchaseDate && !isValidISODate(purchaseDate)) nextErrors.purchaseDate = 'Use YYYY-MM-DD.';
     if (warrantyExpiry && !isValidISODate(warrantyExpiry)) nextErrors.warrantyExpiry = 'Use YYYY-MM-DD.';
+    const priceNumber = purchasePrice.trim()
+      ? Number(purchasePrice.replace(/[$,]/g, ''))
+      : undefined;
+    if (priceNumber !== undefined && (Number.isNaN(priceNumber) || priceNumber < 0)) {
+      nextErrors.purchasePrice = 'Enter a valid amount.';
+    }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -75,6 +89,7 @@ export default function ApplianceFormScreen() {
       model: model.trim() || undefined,
       serialNumber: serialNumber.trim() || undefined,
       purchaseDate: purchaseDate || undefined,
+      purchasePrice: priceNumber,
       warrantyExpiry: warrantyExpiry || undefined,
       warrantyProvider: warrantyProvider.trim() || undefined,
       notes: notes.trim() || undefined,
@@ -131,6 +146,14 @@ export default function ApplianceFormScreen() {
         onChange={setPurchaseDate}
         clearable
         error={errors.purchaseDate}
+      />
+      <FormField
+        label="Purchase price ($)"
+        value={purchasePrice}
+        onChangeText={setPurchasePrice}
+        placeholder="0.00"
+        keyboardType="decimal-pad"
+        error={errors.purchasePrice}
       />
       <DateField
         label="Warranty expiry"

@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import { Button, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { useOrgPlan } from '@/lib/billing';
 import { can } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
 
@@ -13,7 +14,8 @@ export default function PropertyFormScreen() {
   const properties = useAppStore((s) => s.properties);
   const addProperty = useAppStore((s) => s.addProperty);
   const updateProperty = useAppStore((s) => s.updateProperty);
-  const { role, isPropertyScoped } = useSessionInfo();
+  const { role, isPropertyScoped, currentOrg } = useSessionInfo();
+  const planInfo = useOrgPlan(currentOrg?.id);
 
   const existing = id ? properties.find((p) => p.id === id) : undefined;
 
@@ -34,6 +36,18 @@ export default function PropertyFormScreen() {
     return (
       <Screen>
         <EmptyState emoji="🔒" title="No permission" message="Your role can't edit properties." />
+      </Screen>
+    );
+  }
+
+  if (!existing && planInfo?.atLimit) {
+    return (
+      <Screen>
+        <EmptyState
+          emoji="📈"
+          title="Plan limit reached"
+          message={`The ${planInfo.plan?.name ?? 'current'} plan allows ${planInfo.effectiveMax} properties (${planInfo.propertyCount} in use). Upgrade the company's plan to add more.`}
+        />
       </Screen>
     );
   }
