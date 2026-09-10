@@ -71,8 +71,10 @@ Deno.serve(async (req) => {
 
     const client = new Anthropic({ apiKey });
     const response = await client.messages.parse({
-      model: "claude-opus-5",
-      max_tokens: 16000,
+      // Haiku: vision-capable and ~10x cheaper than Opus — right-sized for
+      // label extraction. Output is a tiny JSON object, so a small cap.
+      model: "claude-haiku-4-5",
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
