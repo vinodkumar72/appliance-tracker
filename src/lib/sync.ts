@@ -27,6 +27,7 @@ const toUserRow = (u: User): Row => ({
   id: u.id,
   name: u.name,
   email: u.email ?? '',
+  phone: nul(u.phone),
   is_platform_admin: !!u.isPlatformAdmin,
   created_at: nul(u.createdAt),
   updated_at: u.updatedAt ?? new Date(0).toISOString(),
@@ -35,6 +36,7 @@ const fromUserRow = (r: Row): User => ({
   id: r.id,
   name: r.name,
   email: r.email ?? '',
+  phone: und(r.phone),
   ...(r.is_platform_admin ? { isPlatformAdmin: true } : {}),
   createdAt: r.created_at ?? today(),
   updatedAt: r.updated_at,
@@ -43,12 +45,16 @@ const fromUserRow = (r: Row): User => ({
 const toOrgRow = (o: Organization): Row => ({
   id: o.id,
   name: o.name,
+  address: nul(o.address),
+  phone: nul(o.phone),
   created_at: nul(o.createdAt),
   updated_at: o.updatedAt ?? new Date(0).toISOString(),
 });
 const fromOrgRow = (r: Row): Organization => ({
   id: r.id,
   name: r.name,
+  address: und(r.address),
+  phone: und(r.phone),
   createdAt: r.created_at ?? today(),
   updatedAt: r.updated_at,
 });
@@ -274,7 +280,17 @@ export async function linkAuthUser(): Promise<string | null> {
     .select('*')
     .eq('auth_id', authUser.id);
   if (remoteError) return `Could not look up account: ${remoteError.message}`;
-  const remote = remoteRows?.[0] ? fromUserRow(remoteRows[0]) : null;
+  let remote = remoteRows?.[0] ? fromUserRow(remoteRows[0]) : null;
+  if (!remote) {
+    // Invited member: an admin created their record with this email before
+    // they ever signed in — claim it so their role and access apply.
+    const { data: byEmail } = await supabase
+      .from('app_users')
+      .select('*')
+      .ilike('email', authUser.email)
+      .limit(1);
+    if (byEmail?.[0]) remote = fromUserRow(byEmail[0]);
+  }
 
   const s = useAppStore.getState();
   let localUser: User | undefined;
@@ -478,6 +494,7 @@ export async function syncNow(): Promise<SyncResult> {
 
     const st = useAppStore.getState();
     const pulled =
+
       rUsers.length + rOrgs.length + rMemberships.length + rProperties.length +
       rUnits.length + rAppliances.length + rLogs.length + rSchedules.length +
       rPlans.length + rSubscriptions.length;
@@ -494,6 +511,22 @@ export async function syncNow(): Promise<SyncResult> {
       subscriptions: merge(st.subscriptions, rSubscriptions, 'subscription'),
       lastSyncAt: syncStartedAt,
     });
+
+    // First sync on a device: no company is selected yet — pick a sensible
+    // default (a company they belong to, else the first one they can see).
+    const after = useAppStore.getState();
+    const orgMissing =
+      !after.session.currentOrgId ||
+      !after.organizations.some((o) => o.id === after.session.currentOrgId);
+    if (orgMissing) {
+      const membershipOrg = after.memberships.find(
+        (m) => m.userId === after.session.currentUserId,
+      )?.orgId;
+      const fallbackOrg = membershipOrg ?? after.organizations[0]?.id ?? null;
+      if (fallbackOrg) {
+        useAppStore.setState({ session: { ...after.session, currentOrgId: fallbackOrg } });
+      }
+    }
 
     return { ok: true, pushed, pulled };
   } catch (e) {

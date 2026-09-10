@@ -1,6 +1,7 @@
+import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
 import { Button, ChipPicker, EmptyState, FormField, Screen } from '@/components/ui';
@@ -8,6 +9,8 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { isValidISODate } from '@/lib/dates';
 import { APPLIANCE_TYPES, APPLIANCE_TYPE_ORDER } from '@/lib/defaults';
+import { parseLabelText } from '@/lib/label-parser';
+import { OFFLINE_OCR_AVAILABLE, runOfflineOcr } from '@/lib/ocr';
 import { can } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
 import type { ApplianceType } from '@/lib/types';
@@ -44,6 +47,8 @@ export default function ApplianceFormScreen() {
   const [warrantyProvider, setWarrantyProvider] = useState(existing?.warrantyProvider ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
   const [withDefaults, setWithDefaults] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [scanMessage, setScanMessage] = useState('');
   const [errors, setErrors] = useState<{
     name?: string;
     purchaseDate?: string;
@@ -65,6 +70,63 @@ export default function ApplianceFormScreen() {
   }
 
   const defaultsCount = APPLIANCE_TYPES[type].defaultSchedules.length;
+
+  const scanLabel = async () => {
+    try {
+      setScanMessage('');
+      let result: ImagePicker.ImagePickerResult;
+      if (Platform.OS === 'web') {
+        // Browsers get a file picker (phones' browsers still offer the camera there).
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          quality: 0.6,
+          base64: true,
+        });
+      } else {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) {
+          setScanMessage('Camera permission is needed to scan labels.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true });
+      }
+      const asset = result.canceled ? undefined : result.assets?.[0];
+      if (!asset?.base64) return;
+
+      setScanning(true);
+      const mediaType = asset.mimeType ?? 'image/jpeg';
+
+      // Fully on-device: OCR runs locally — no internet, no cloud, no AI key.
+      setScanMessage('Reading label on this device…');
+      const ocrText = await runOfflineOcr(asset.base64, mediaType);
+      const parsed = ocrText ? parseLabelText(ocrText) : {};
+      if (parsed.brand || parsed.model || parsed.serialNumber) {
+        if (parsed.brand) setBrand(parsed.brand);
+        if (parsed.model) setModel(parsed.model);
+        if (parsed.serialNumber) setSerialNumber(parsed.serialNumber);
+        if (parsed.applianceType && parsed.applianceType in APPLIANCE_TYPES) {
+          setType(parsed.applianceType as ApplianceType);
+        }
+        if (parsed.suggestedName && !name.trim()) setName(parsed.suggestedName);
+        const found = [
+          parsed.brand && 'brand',
+          parsed.model && 'model',
+          parsed.serialNumber && 'serial number',
+        ]
+          .filter(Boolean)
+          .join(', ');
+        setScanMessage(`Label scanned — filled in ${found}. Double-check against the label.`);
+      } else {
+        setScanMessage(
+          "Couldn't read any details from that photo — try a closer, straight-on, well-lit shot of the label, or enter the details manually.",
+        );
+      }
+    } catch (e) {
+      setScanMessage(`Scan failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const save = () => {
     const nextErrors: typeof errors = {};
@@ -105,6 +167,18 @@ export default function ApplianceFormScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: existing ? 'Edit appliance' : 'Add appliance' }} />
+      {OFFLINE_OCR_AVAILABLE ? (
+        <>
+          <Button
+            title={scanning ? 'Scanning…' : '📷 Scan appliance label'}
+            variant="secondary"
+            onPress={scanning ? () => {} : scanLabel}
+          />
+          {scanMessage ? (
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>{scanMessage}</Text>
+          ) : null}
+        </>
+      ) : null}
       <FormField
         label="Name *"
         value={name}

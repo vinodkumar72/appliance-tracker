@@ -61,6 +61,10 @@ export type Role = 'owner' | 'admin' | 'manager' | 'technician' | 'viewer' | 'in
 export interface Organization extends Syncable {
   id: string;
   name: string;
+  /** Company office/mailing address. */
+  address?: string;
+  /** Company phone number. */
+  phone?: string;
   createdAt: string;
 }
 
@@ -68,6 +72,7 @@ export interface User extends Syncable {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   /**
    * The software operator: onboards companies onto the platform and has
    * oversight of all of them. Not a member of any company by default.

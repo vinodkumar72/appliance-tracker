@@ -18,6 +18,7 @@ export default function AccountScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -79,6 +80,18 @@ export default function AccountScreen() {
     setBusy(false);
   };
 
+  const updatePassword = async () => {
+    if (newPassword.length < 6) {
+      setMessage('Password must be at least 6 characters.');
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setMessage(error ? `Could not update password: ${error.message}` : 'Password updated.');
+    setNewPassword('');
+    setBusy(false);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setMessage('Signed out. The app keeps working offline; sign in again to sync.');
@@ -103,6 +116,25 @@ export default function AccountScreen() {
             </Text>
           </Card>
           <Button title={busy ? 'Working…' : 'Sync now'} onPress={busy ? () => {} : runSync} />
+          <Card>
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+              Set or change your password (invited users: set one here so you can sign in on other
+              devices).
+            </Text>
+            <FormField
+              label="New password"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="At least 6 characters"
+              secureTextEntry
+            />
+            <Button
+              title={busy ? 'Working…' : 'Update password'}
+              variant="secondary"
+              compact
+              onPress={busy ? () => {} : updatePassword}
+            />
+          </Card>
           <Button title="Sign out" variant="secondary" onPress={signOut} />
         </>
       ) : (

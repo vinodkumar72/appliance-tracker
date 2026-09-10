@@ -3,10 +3,13 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 
+import { AuthGate } from '@/components/auth-gate';
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AuthGate>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="property/[id]" options={{ title: 'Property' }} />
@@ -24,6 +27,7 @@ export default function RootLayout() {
         <Stack.Screen name="subscription-form" options={{ title: 'Subscription', presentation: 'modal' }} />
         <Stack.Screen name="member-form" options={{ title: 'Member', presentation: 'modal' }} />
       </Stack>
+      </AuthGate>
       <StatusBar style="auto" />
     </ThemeProvider>
   );

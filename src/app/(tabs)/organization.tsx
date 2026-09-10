@@ -1,4 +1,6 @@
+import type { Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Badge, Button, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
@@ -8,6 +10,7 @@ import { describePlanStatus, getPlanStatus, useOrgPlan } from '@/lib/billing';
 import { confirmDestructive } from '@/lib/confirm';
 import { can, ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/permissions';
 import { useAppStore, usePendingChanges, useSessionInfo } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function OrganizationScreen() {
   const theme = useTheme();
@@ -36,7 +39,25 @@ export default function OrganizationScreen() {
   const lastSyncAt = useAppStore((s) => s.lastSyncAt);
   const plans = useAppStore((s) => s.plans);
   const subscriptions = useAppStore((s) => s.subscriptions);
+  const setDemoMode = useAppStore((s) => s.setDemoMode);
   const currentOrgPlan = useOrgPlan(currentOrg?.id);
+
+  const [authSession, setAuthSession] = useState<Session | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setAuthSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setAuthSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const signOut = () =>
+    confirmDestructive(
+      'Sign out?',
+      'Unsynced changes stay on this device and upload the next time you sign in.',
+      async () => {
+        await supabase.auth.signOut();
+        setDemoMode(false);
+      },
+    );
 
   if (!currentOrg) {
     return (
@@ -58,6 +79,16 @@ export default function OrganizationScreen() {
               <Button title="Onboard a company" onPress={() => router.push('/org-form')} />
             ) : null}
             <Button title="Load sample data" variant="secondary" onPress={loadSampleData} />
+            <Button
+              title="Account & sync"
+              variant="secondary"
+              onPress={() => router.push('/account')}
+            />
+            <Text style={{ color: theme.textSecondary, fontSize: 13, textAlign: 'center' }}>
+              {authSession
+                ? `Signed in as ${authSession.user.email}`
+                : 'Not signed in (offline demo)'}
+            </Text>
           </View>
         </EmptyState>
       </Screen>
@@ -83,7 +114,7 @@ export default function OrganizationScreen() {
         right={
           can(role, 'manageOrg') || isPlatformAdmin ? (
             <Button
-              title="Rename"
+              title="Edit"
               variant="secondary"
               compact
               onPress={() => router.push(`/org-form?id=${currentOrg.id}`)}
@@ -297,6 +328,38 @@ export default function OrganizationScreen() {
             onPress={claimPlatformOwnership}
           />
         ) : null}
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+            paddingTop: Spacing.two,
+            gap: 8,
+          }}>
+          {authSession ? (
+            <>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                Account: {authSession.user.email}
+              </Text>
+              <View style={{ flexDirection: 'row' }}>
+                <Button title="Sign out" variant="danger" compact onPress={signOut} />
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row' }}>
+                <Badge label="offline demo — not signed in" tone="warning" />
+              </View>
+              <View style={{ flexDirection: 'row' }}>
+                <Button
+                  title="Sign in"
+                  variant="secondary"
+                  compact
+                  onPress={() => setDemoMode(false)}
+                />
+              </View>
+            </>
+          )}
+        </View>
       </Card>
 
       <SectionHeader

@@ -11,6 +11,7 @@ create table public.app_users (
   auth_id uuid unique references auth.users (id) on delete set null,
   name text not null,
   email text not null default '',
+  phone text,
   is_platform_admin boolean not null default false,
   created_at text,
   updated_at timestamptz not null default now()
@@ -19,6 +20,8 @@ create table public.app_users (
 create table public.organizations (
   id text primary key,
   name text not null,
+  address text,
+  phone text,
   created_at text,
   updated_at timestamptz not null default now()
 );
@@ -293,9 +296,15 @@ create policy subscriptions_update on public.subscriptions for update
 create policy subscriptions_delete on public.subscriptions for delete
   using (public.is_platform_admin());
 
--- app_users: see yourself, platform admin, and people you share a company with.
+-- app_users: see yourself (by auth link or by your login email, so invited
+-- users can claim their record), platform admin, and co-members.
 create policy users_select on public.app_users for select
-  using (auth_id = auth.uid() or public.is_platform_admin() or public.shares_org_with(id));
+  using (
+    auth_id = auth.uid()
+    or lower(email) = lower(coalesce(auth.jwt()->>'email', ''))
+    or public.is_platform_admin()
+    or public.shares_org_with(id)
+  );
 -- Signed-in users may create user records (needed when onboarding members),
 -- but a platform-admin row can only be inserted by an existing platform admin
 -- or when none exists yet ("the first user claims the platform").
@@ -307,15 +316,21 @@ create policy users_insert on public.app_users for insert
          or not public.platform_admin_exists())
   );
 create policy users_update on public.app_users for update
-  using (auth_id = auth.uid() or public.is_platform_admin()
-         or exists (select 1 from public.memberships m
-                    where m.user_id = public.app_users.id and public.can_manage_members(m.org_id)));
+  using (
+    auth_id = auth.uid()
+    or (auth_id is null and lower(email) = lower(coalesce(auth.jwt()->>'email', '')))
+    or public.is_platform_admin()
+    or exists (select 1 from public.memberships m
+               where m.user_id = public.app_users.id and public.can_manage_members(m.org_id))
+  );
 
 -- organizations: members see theirs; only the platform owner creates/deletes.
 create policy orgs_select on public.organizations for select
   using (public.is_platform_admin() or public.my_role(id) is not null);
+-- Owners may "insert" their own existing org (how upserted updates arrive);
+-- truly new orgs still require the platform admin (no membership exists yet).
 create policy orgs_insert on public.organizations for insert
-  with check (public.is_platform_admin());
+  with check (public.is_platform_admin() or public.my_role(id) = 'owner');
 create policy orgs_update on public.organizations for update
   using (public.is_platform_admin() or public.my_role(id) = 'owner');
 create policy orgs_delete on public.organizations for delete

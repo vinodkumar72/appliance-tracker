@@ -6,6 +6,7 @@ import { Button, ChipPicker, EmptyState, FormField, Screen } from '@/components/
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructive } from '@/lib/confirm';
+import { sendInvite } from '@/lib/invite';
 import { assignableRoles, can, ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
 import type { Role } from '@/lib/types';
@@ -39,6 +40,8 @@ export default function MemberFormScreen() {
   const [selectedIds, setSelectedIds] = useState<string[]>(existing?.propertyIds ?? []);
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>(existing?.unitIds ?? []);
   const [errors, setErrors] = useState<{ name?: string; email?: string; scope?: string }>({});
+  const [inviting, setInviting] = useState(false);
+  const [doneMessage, setDoneMessage] = useState('');
 
   if ((!can(actorRole, 'manageUsers') && !isPlatformAdmin) || !currentOrg) {
     return (
@@ -80,7 +83,7 @@ export default function MemberFormScreen() {
       ids.includes(unitId) ? ids.filter((x) => x !== unitId) : [...ids, unitId],
     );
 
-  const save = () => {
+  const save = async () => {
     const nextErrors: typeof errors = {};
     if (!existing) {
       if (!name.trim()) nextErrors.name = 'Name is required.';
@@ -101,11 +104,31 @@ export default function MemberFormScreen() {
         propertyIds: propertyIds ?? null,
         unitIds: unitIds ?? null,
       });
-    } else {
-      addMember(name, email, role, propertyIds, unitIds);
+      router.back();
+      return;
     }
-    router.back();
+
+    addMember(name, email, role, propertyIds, unitIds);
+    setInviting(true);
+    const inviteError = await sendInvite(email, currentOrg.id);
+    setInviting(false);
+    setDoneMessage(
+      inviteError
+        ? `${name.trim()} was added to ${currentOrg.name}, but the invitation email could not be sent (${inviteError}). They can still sign up themselves at this app using ${email.trim()} — their access will connect automatically.`
+        : `${name.trim()} was added to ${currentOrg.name} and an invitation email was sent to ${email.trim()}. Once they accept and set a password, their role and access apply automatically.`,
+    );
   };
+
+  if (doneMessage) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Member added' }} />
+        <EmptyState emoji="📧" title="Member added" message={doneMessage}>
+          <Button title="Close" onPress={() => router.back()} />
+        </EmptyState>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -245,7 +268,10 @@ export default function MemberFormScreen() {
 
       <View style={{ gap: Spacing.two }}>
         {canEditTarget && !isLastOwner ? (
-          <Button title={existing ? 'Save' : 'Add member'} onPress={save} />
+          <Button
+            title={inviting ? 'Sending invitation…' : existing ? 'Save' : 'Add member & send invite'}
+            onPress={inviting ? () => {} : save}
+          />
         ) : null}
         {existing && canEditTarget && !isLastOwner ? (
           <Button

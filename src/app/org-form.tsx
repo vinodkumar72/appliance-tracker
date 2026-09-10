@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import { Button, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { sendInvite } from '@/lib/invite';
 import { can } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
 
@@ -14,17 +15,21 @@ export default function OrgFormScreen() {
   const router = useRouter();
   const organizations = useAppStore((s) => s.organizations);
   const createOrganization = useAppStore((s) => s.createOrganization);
-  const renameOrganization = useAppStore((s) => s.renameOrganization);
+  const updateOrganization = useAppStore((s) => s.updateOrganization);
   const { role, isPlatformAdmin } = useSessionInfo();
 
   const existing = id ? organizations.find((o) => o.id === id) : undefined;
 
   const [name, setName] = useState(existing?.name ?? '');
+  const [address, setAddress] = useState(existing?.address ?? '');
+  const [orgPhone, setOrgPhone] = useState(existing?.phone ?? '');
   const [ownerName, setOwnerName] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const [errors, setErrors] = useState<{ name?: string; ownerName?: string; ownerEmail?: string }>(
     {},
   );
+  const [inviting, setInviting] = useState(false);
+  const [doneMessage, setDoneMessage] = useState('');
 
   // Onboarding new companies is the platform owner's job; renaming needs
   // manageOrg within the company (or the platform owner).
@@ -45,7 +50,7 @@ export default function OrgFormScreen() {
     );
   }
 
-  const save = () => {
+  const save = async () => {
     const nextErrors: typeof errors = {};
     if (!name.trim()) nextErrors.name = 'Company name is required.';
     if (!existing) {
@@ -58,16 +63,44 @@ export default function OrgFormScreen() {
     if (Object.keys(nextErrors).length > 0) return;
 
     if (existing) {
-      renameOrganization(existing.id, name);
-    } else {
-      createOrganization(name, ownerName, ownerEmail);
+      updateOrganization(existing.id, {
+        name: name.trim(),
+        address: address.trim() || undefined,
+        phone: orgPhone.trim() || undefined,
+      });
+      router.back();
+      return;
+    }
+
+    const orgId = createOrganization(name, ownerName, ownerEmail);
+    if (ownerEmail.trim()) {
+      setInviting(true);
+      const inviteError = await sendInvite(ownerEmail, orgId);
+      setInviting(false);
+      setDoneMessage(
+        inviteError
+          ? `${name.trim()} was onboarded, but the invitation email to ${ownerName.trim()} could not be sent (${inviteError}). They can still sign up themselves using ${ownerEmail.trim()}.`
+          : `${name.trim()} was onboarded and an invitation email was sent to ${ownerName.trim()} (${ownerEmail.trim()}). Once they accept, they can run their company.`,
+      );
+      return;
     }
     router.back();
   };
 
+  if (doneMessage) {
+    return (
+      <Screen>
+        <Stack.Screen options={{ title: 'Company onboarded' }} />
+        <EmptyState emoji="📧" title="Company onboarded" message={doneMessage}>
+          <Button title="Close" onPress={() => router.back()} />
+        </EmptyState>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
-      <Stack.Screen options={{ title: existing ? 'Rename company' : 'Onboard company' }} />
+      <Stack.Screen options={{ title: existing ? 'Edit company' : 'Onboard company' }} />
       <FormField
         label="Company name *"
         value={name}
@@ -75,6 +108,24 @@ export default function OrgFormScreen() {
         placeholder="e.g. Acme Property Management"
         error={errors.name}
       />
+      {existing ? (
+        <>
+          <FormField
+            label="Company address"
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Street, city, state, ZIP"
+            multiline
+          />
+          <FormField
+            label="Company phone"
+            value={orgPhone}
+            onChangeText={setOrgPhone}
+            placeholder="Main office number"
+            keyboardType="phone-pad"
+          />
+        </>
+      ) : null}
       {!existing ? (
         <>
           <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
@@ -100,7 +151,10 @@ export default function OrgFormScreen() {
         </>
       ) : null}
       <View style={{ gap: Spacing.two }}>
-        <Button title={existing ? 'Save' : 'Onboard company'} onPress={save} />
+        <Button
+          title={inviting ? 'Sending invitation…' : existing ? 'Save' : 'Onboard company'}
+          onPress={inviting ? () => {} : save}
+        />
         <Button title="Cancel" variant="secondary" onPress={() => router.back()} />
       </View>
     </Screen>

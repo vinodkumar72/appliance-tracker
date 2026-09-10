@@ -42,7 +42,11 @@ interface AppState {
   deletions: DeletionRecord[];
   /** When this device last synced with the backend; null = never / no backend yet. */
   lastSyncAt: string | null;
+  /** Using the app without an account (local-only). Cleared on sign-out. */
+  demoMode: boolean;
   hydrated: boolean;
+
+  setDemoMode: (on: boolean) => void;
 
   /** Sets up the software operator account (first run). */
   bootstrapPlatformAdmin: (name: string, email: string) => void;
@@ -55,6 +59,8 @@ interface AppState {
    */
   createOrganization: (name: string, ownerName: string, ownerEmail?: string) => string;
   renameOrganization: (id: string, name: string) => void;
+  updateOrganization: (id: string, patch: Partial<Organization>) => void;
+  updateUserProfile: (id: string, patch: { name?: string; phone?: string }) => void;
   switchOrganization: (orgId: string) => void;
   /** Demo helper: act as another member of the current org. */
   switchUser: (userId: string) => void;
@@ -124,7 +130,10 @@ export const useAppStore = create<AppState>()(
       subscriptions: [],
       deletions: [],
       lastSyncAt: null,
+      demoMode: false,
       hydrated: false,
+
+      setDemoMode: (on) => set({ demoMode: on }),
 
       addPlan: (p) => {
         const id = uid();
@@ -260,6 +269,18 @@ export const useAppStore = create<AppState>()(
         set((s) => ({
           organizations: s.organizations.map((o) =>
             o.id === id ? { ...o, name: name.trim(), updatedAt: nowISO() } : o,
+          ),
+        })),
+      updateOrganization: (id, patch) =>
+        set((s) => ({
+          organizations: s.organizations.map((o) =>
+            o.id === id ? { ...o, ...patch, id, updatedAt: nowISO() } : o,
+          ),
+        })),
+      updateUserProfile: (id, patch) =>
+        set((s) => ({
+          users: s.users.map((u) =>
+            u.id === id ? { ...u, ...patch, id, updatedAt: nowISO() } : u,
           ),
         })),
       switchOrganization: (orgId) =>
@@ -561,6 +582,7 @@ export const useAppStore = create<AppState>()(
         subscriptions: s.subscriptions,
         deletions: s.deletions,
         lastSyncAt: s.lastSyncAt,
+        demoMode: s.demoMode,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Partial<AppState>;
@@ -674,38 +696,42 @@ export function useOrgData() {
  * Number of local changes not yet pushed to a backend: records created or
  * updated since the last sync, plus pending deletions.
  */
-export function usePendingChanges(): number {
-  const lastSyncAt = useAppStore((s) => s.lastSyncAt);
-  const organizations = useAppStore((s) => s.organizations);
-  const users = useAppStore((s) => s.users);
-  const memberships = useAppStore((s) => s.memberships);
-  const properties = useAppStore((s) => s.properties);
-  const units = useAppStore((s) => s.units);
-  const appliances = useAppStore((s) => s.appliances);
-  const logs = useAppStore((s) => s.logs);
-  const schedules = useAppStore((s) => s.schedules);
-  const plans = useAppStore((s) => s.plans);
-  const subscriptions = useAppStore((s) => s.subscriptions);
-  const deletions = useAppStore((s) => s.deletions);
-
+export function countPendingChanges(s: {
+  lastSyncAt: string | null;
+  organizations: Organization[];
+  users: User[];
+  memberships: Membership[];
+  properties: Property[];
+  units: Unit[];
+  appliances: Appliance[];
+  logs: MaintenanceLog[];
+  schedules: Schedule[];
+  plans: Plan[];
+  subscriptions: Subscription[];
+  deletions: DeletionRecord[];
+}): number {
   const isPending = (updatedAt?: string) =>
-    !!updatedAt && (!lastSyncAt || updatedAt > lastSyncAt);
+    !!updatedAt && (!s.lastSyncAt || updatedAt > s.lastSyncAt);
   const all: { updatedAt?: string }[] = [
-    ...organizations,
-    ...users,
-    ...memberships,
-    ...properties,
-    ...units,
-    ...appliances,
-    ...logs,
-    ...schedules,
-    ...plans,
-    ...subscriptions,
+    ...s.organizations,
+    ...s.users,
+    ...s.memberships,
+    ...s.properties,
+    ...s.units,
+    ...s.appliances,
+    ...s.logs,
+    ...s.schedules,
+    ...s.plans,
+    ...s.subscriptions,
   ];
   return (
     all.filter((x) => isPending(x.updatedAt)).length +
-    deletions.filter((d) => !lastSyncAt || d.deletedAt > lastSyncAt).length
+    s.deletions.filter((d) => !s.lastSyncAt || d.deletedAt > s.lastSyncAt).length
   );
+}
+
+export function usePendingChanges(): number {
+  return useAppStore((s) => countPendingChanges(s));
 }
 
 /** All schedules joined with appliance/property info and due dates, soonest first. */
