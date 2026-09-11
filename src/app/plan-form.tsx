@@ -28,11 +28,15 @@ export default function PlanFormScreen() {
   const [maxProperties, setMaxProperties] = useState(
     existing?.maxProperties != null ? String(existing.maxProperties) : '',
   );
+  const [maxAppliances, setMaxAppliances] = useState(
+    existing?.maxAppliancesPerProperty != null ? String(existing.maxAppliancesPerProperty) : '',
+  );
   const [trialDays, setTrialDays] = useState(existing ? String(existing.trialDays) : '14');
   const [errors, setErrors] = useState<{
     name?: string;
     yearlyPrice?: string;
     maxProperties?: string;
+    maxAppliances?: string;
     trialDays?: string;
   }>({});
 
@@ -57,6 +61,10 @@ export default function PlanFormScreen() {
     if (max !== undefined && (!Number.isInteger(max) || max < 1)) {
       nextErrors.maxProperties = 'Whole number, or leave blank for unlimited.';
     }
+    const maxAppl = maxAppliances.trim() === '' ? undefined : Number(maxAppliances);
+    if (maxAppl !== undefined && (!Number.isInteger(maxAppl) || maxAppl < 1)) {
+      nextErrors.maxAppliances = 'Whole number, or leave blank for unlimited.';
+    }
     const trial = Number(trialDays || '0');
     if (!Number.isInteger(trial) || trial < 0 || trial > 365) {
       nextErrors.trialDays = 'Whole number of days (0 = no trial).';
@@ -64,7 +72,13 @@ export default function PlanFormScreen() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const data = { name: name.trim(), yearlyPrice: price, maxProperties: max, trialDays: trial };
+    const data = {
+      name: name.trim(),
+      yearlyPrice: price,
+      maxProperties: max,
+      maxAppliancesPerProperty: maxAppl,
+      trialDays: trial,
+    };
     if (existing) {
       updatePlan(existing.id, data);
     } else {
@@ -98,6 +112,14 @@ export default function PlanFormScreen() {
         placeholder="Leave blank for unlimited"
         keyboardType="number-pad"
         error={errors.maxProperties}
+      />
+      <FormField
+        label="Appliance limit per unit"
+        value={maxAppliances}
+        onChangeText={setMaxAppliances}
+        placeholder="Leave blank for unlimited"
+        keyboardType="number-pad"
+        error={errors.maxAppliances}
       />
       <FormField
         label="Trial period (days)"

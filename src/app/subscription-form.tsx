@@ -91,6 +91,9 @@ export default function SubscriptionFormScreen() {
           {selectedPlan.maxProperties != null
             ? `Up to ${selectedPlan.maxProperties} properties.`
             : 'Unlimited properties.'}
+          {selectedPlan.maxAppliancesPerProperty != null
+            ? ` Up to ${selectedPlan.maxAppliancesPerProperty} appliances per unit.`
+            : ''}
           {selectedPlan.trialDays > 0 ? ` ${selectedPlan.trialDays}-day trial available.` : ''}
         </Text>
       ) : null}

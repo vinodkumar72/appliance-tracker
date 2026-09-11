@@ -7,6 +7,7 @@ import { Badge, Button, Card, EmptyState, Screen, SectionHeader } from '@/compon
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructive } from '@/lib/confirm';
+import { useApplianceLimit } from '@/lib/billing';
 import { can } from '@/lib/permissions';
 import { getSchedulesWithDue, useAppStore, useOrgData, useSessionInfo } from '@/lib/store';
 
@@ -17,6 +18,8 @@ export default function PropertyDetailScreen() {
   const { properties, units, appliances, schedules } = useOrgData();
   const { role } = useSessionInfo();
   const canEdit = can(role, 'editProperties');
+  // The property page's "+ Add" targets the building/common bucket.
+  const applianceLimit = useApplianceLimit(id, { unitId: null });
   const deleteProperty = useAppStore((s) => s.deleteProperty);
 
   const property = properties.find((p) => p.id === id);
@@ -150,7 +153,7 @@ export default function PropertyDetailScreen() {
             : `Appliances (${commonAppliances.length})`
         }
         right={
-          canEdit ? (
+          canEdit && !applianceLimit?.atLimit ? (
             <Button
               title="+ Add"
               compact
@@ -159,6 +162,19 @@ export default function PropertyDetailScreen() {
           ) : undefined
         }
       />
+      {canEdit && applianceLimit?.atLimit ? (
+        <Card>
+          <Text style={{ color: theme.warning, fontSize: 14, fontWeight: '600' }}>
+            Appliance limit reached ({applianceLimit.count}/{applianceLimit.max}
+            {hasUnits ? ' in the building/common area' : ' on this property'})
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+            The {applianceLimit.planName ?? 'current'} plan allows {applianceLimit.max} appliances
+            per unit.{hasUnits ? ' Each unit has its own allowance.' : ''} Upgrade the plan to add
+            more.
+          </Text>
+        </Card>
+      ) : null}
       {commonAppliances.length === 0 ? (
         <Card>
           <Text style={{ color: theme.textSecondary }}>

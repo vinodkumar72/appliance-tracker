@@ -208,6 +208,7 @@ const toPlanRow = (p: Plan): Row => ({
   name: p.name,
   yearly_price: p.yearlyPrice,
   max_properties: p.maxProperties ?? null,
+  max_appliances_per_property: p.maxAppliancesPerProperty ?? null,
   trial_days: p.trialDays,
   created_at: nul(p.createdAt),
   updated_at: p.updatedAt ?? new Date(0).toISOString(),
@@ -217,6 +218,8 @@ const fromPlanRow = (r: Row): Plan => ({
   name: r.name,
   yearlyPrice: Number(r.yearly_price),
   maxProperties: r.max_properties === null ? undefined : Number(r.max_properties),
+  maxAppliancesPerProperty:
+    r.max_appliances_per_property === null ? undefined : Number(r.max_appliances_per_property),
   trialDays: Number(r.trial_days),
   createdAt: r.created_at ?? today(),
   updatedAt: r.updated_at,

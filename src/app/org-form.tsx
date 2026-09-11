@@ -2,7 +2,8 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { Button, EmptyState, FormField, Screen } from '@/components/ui';
+import { findFreePlan } from '@/lib/billing';
+import { Button, ChipPicker, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { sendInvite } from '@/lib/invite';
@@ -14,8 +15,10 @@ export default function OrgFormScreen() {
   const theme = useTheme();
   const router = useRouter();
   const organizations = useAppStore((s) => s.organizations);
+  const plans = useAppStore((s) => s.plans);
   const createOrganization = useAppStore((s) => s.createOrganization);
   const updateOrganization = useAppStore((s) => s.updateOrganization);
+  const setSubscription = useAppStore((s) => s.setSubscription);
   const { role, isPlatformAdmin } = useSessionInfo();
 
   const existing = id ? organizations.find((o) => o.id === id) : undefined;
@@ -30,6 +33,14 @@ export default function OrgFormScreen() {
   );
   const [inviting, setInviting] = useState(false);
   const [doneMessage, setDoneMessage] = useState('');
+  const [planId, setPlanId] = useState(findFreePlan(plans)?.id ?? plans[0]?.id ?? '');
+  const [planMode, setPlanMode] = useState<'trial' | 'active'>('trial');
+
+  const selectedPlan = plans.find((p) => p.id === planId);
+  const isPaidPlan = !!selectedPlan && selectedPlan.yearlyPrice > 0;
+  const trialAvailable = isPaidPlan && selectedPlan.trialDays > 0;
+  const effectiveMode: 'trial' | 'active' =
+    !isPaidPlan || !trialAvailable ? 'active' : planMode;
 
   // Onboarding new companies is the platform owner's job; renaming needs
   // manageOrg within the company (or the platform owner).
@@ -73,14 +84,26 @@ export default function OrgFormScreen() {
     }
 
     const orgId = createOrganization(name, ownerName, ownerEmail);
+    if (selectedPlan) {
+      setSubscription(orgId, selectedPlan.id, effectiveMode);
+    }
+    const planNote = selectedPlan
+      ? ` Plan: ${selectedPlan.name}${
+          selectedPlan.yearlyPrice === 0
+            ? ''
+            : effectiveMode === 'trial'
+              ? ` (${selectedPlan.trialDays}-day trial)`
+              : ' (active, 1 year)'
+        }.`
+      : '';
     if (ownerEmail.trim()) {
       setInviting(true);
       const inviteError = await sendInvite(ownerEmail, orgId);
       setInviting(false);
       setDoneMessage(
         inviteError
-          ? `${name.trim()} was onboarded, but the invitation email to ${ownerName.trim()} could not be sent (${inviteError}). They can still sign up themselves using ${ownerEmail.trim()}.`
-          : `${name.trim()} was onboarded and an invitation email was sent to ${ownerName.trim()} (${ownerEmail.trim()}). Once they accept, they can run their company.`,
+          ? `${name.trim()} was onboarded, but the invitation email to ${ownerName.trim()} could not be sent (${inviteError}). They can still sign up themselves using ${ownerEmail.trim()}.${planNote}`
+          : `${name.trim()} was onboarded and an invitation email was sent to ${ownerName.trim()} (${ownerEmail.trim()}). Once they accept, they can run their company.${planNote}`,
       );
       return;
     }
@@ -148,6 +171,41 @@ export default function OrgFormScreen() {
             autoCapitalize="none"
             error={errors.ownerEmail}
           />
+          {plans.length > 0 ? (
+            <>
+              <ChipPicker
+                label="Starting plan"
+                value={planId}
+                onChange={setPlanId}
+                options={plans.map((p) => ({
+                  value: p.id,
+                  label: `${p.name} — ${p.yearlyPrice === 0 ? 'free' : `$${p.yearlyPrice}/yr`}`,
+                }))}
+              />
+              {selectedPlan ? (
+                <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                  {selectedPlan.maxProperties != null
+                    ? `Up to ${selectedPlan.maxProperties} properties.`
+                    : 'Unlimited properties.'}
+                  {selectedPlan.maxAppliancesPerProperty != null
+                    ? ` Up to ${selectedPlan.maxAppliancesPerProperty} appliances per unit.`
+                    : ''}
+                  {trialAvailable ? ` ${selectedPlan.trialDays}-day trial available.` : ''}
+                </Text>
+              ) : null}
+              {trialAvailable ? (
+                <ChipPicker
+                  label="Billing"
+                  value={planMode}
+                  onChange={setPlanMode}
+                  options={[
+                    { value: 'trial', label: `Start ${selectedPlan!.trialDays}-day trial` },
+                    { value: 'active', label: `Activate — 1 year ($${selectedPlan!.yearlyPrice})` },
+                  ]}
+                />
+              ) : null}
+            </>
+          ) : null}
         </>
       ) : null}
       <View style={{ gap: Spacing.two }}>

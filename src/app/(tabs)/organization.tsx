@@ -217,6 +217,9 @@ export default function OrganizationScreen() {
                       {plan.maxProperties != null
                         ? `up to ${plan.maxProperties} properties`
                         : 'unlimited properties'}
+                      {plan.maxAppliancesPerProperty != null
+                        ? ` · ${plan.maxAppliancesPerProperty} appliances/unit`
+                        : ''}
                       {plan.trialDays > 0 ? ` · ${plan.trialDays}-day trial` : ''} ·{' '}
                       {subscriberCount} compan{subscriberCount === 1 ? 'y' : 'ies'}
                     </Text>

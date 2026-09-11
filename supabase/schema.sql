@@ -107,7 +107,8 @@ create table public.plans (
   id text primary key,
   name text not null,
   yearly_price numeric not null default 0,
-  max_properties integer,           -- null = unlimited
+  max_properties integer,                 -- null = unlimited
+  max_appliances_per_property integer,    -- null = unlimited
   trial_days integer not null default 0,
   created_at text,
   updated_at timestamptz not null default now()

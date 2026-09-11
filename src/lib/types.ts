@@ -28,6 +28,8 @@ export interface Plan extends Syncable {
   yearlyPrice: number;
   /** Property limit; undefined = unlimited. */
   maxProperties?: number;
+  /** Appliance limit per property; undefined = unlimited. */
+  maxAppliancesPerProperty?: number;
   /** Trial length when a company starts on this plan; 0 = no trial. */
   trialDays: number;
   createdAt: string;

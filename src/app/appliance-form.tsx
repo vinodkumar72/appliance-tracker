@@ -12,6 +12,7 @@ import { APPLIANCE_TYPES, APPLIANCE_TYPE_ORDER } from '@/lib/defaults';
 import NetInfo from '@react-native-community/netinfo';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
+import { useApplianceLimit } from '@/lib/billing';
 import { parseLabelText } from '@/lib/label-parser';
 import { OFFLINE_OCR_AVAILABLE, runOfflineOcr } from '@/lib/ocr';
 import { can } from '@/lib/permissions';
@@ -62,6 +63,18 @@ export default function ApplianceFormScreen() {
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
   const [scanTone, setScanTone] = useState<'success' | 'progress' | 'warning'>('progress');
+  // Limit check for the bucket (unit or building/common) currently selected.
+  const applianceLimit = useApplianceLimit(targetPropertyId, {
+    unitId: unitId || null,
+    excludeApplianceId: existing?.id,
+  });
+  const bucketBlocked =
+    !!applianceLimit?.atLimit && (!existing || (existing.unitId ?? null) !== (unitId || null));
+  const bucketLabel = unitId
+    ? (propertyUnits.find((u) => u.id === unitId)?.name ?? 'this unit')
+    : propertyUnits.length > 0
+      ? 'the building/common area'
+      : 'this property';
   const showScan = (message: string, tone: 'success' | 'progress' | 'warning') => {
     setScanMessage(message);
     setScanTone(tone);
@@ -85,6 +98,7 @@ export default function ApplianceFormScreen() {
     router.back();
     return null;
   }
+
 
   const defaultsCount = APPLIANCE_TYPES[type].defaultSchedules.length;
 
@@ -221,6 +235,7 @@ export default function ApplianceFormScreen() {
   };
 
   const save = () => {
+    if (bucketBlocked) return; // the limit banner explains why
     const nextErrors: typeof errors = {};
     if (!name.trim()) nextErrors.name = 'Name is required.';
     if (purchaseDate && !isValidISODate(purchaseDate)) nextErrors.purchaseDate = 'Use YYYY-MM-DD.';
@@ -324,6 +339,25 @@ export default function ApplianceFormScreen() {
             ...propertyUnits.map((u) => ({ value: u.id, label: `🚪 ${u.name}` })),
           ]}
         />
+      ) : null}
+      {bucketBlocked && applianceLimit ? (
+        <View
+          style={{
+            borderWidth: 1.5,
+            borderRadius: 10,
+            padding: 12,
+            borderColor: theme.warning,
+            backgroundColor: theme.backgroundElement,
+            gap: 4,
+          }}>
+          <Text style={{ color: theme.warning, fontSize: 14, fontWeight: '600' }}>
+            Appliance limit reached in {bucketLabel} ({applianceLimit.count}/{applianceLimit.max})
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+            The {applianceLimit.planName ?? 'current'} plan allows {applianceLimit.max} appliances
+            per unit.{propertyUnits.length > 0 ? ' Pick a different location, or upgrade the plan.' : ' Upgrade the plan to add more.'}
+          </Text>
+        </View>
       ) : null}
       <FormField label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Whirlpool" />
       <FormField label="Model" value={model} onChangeText={setModel} placeholder="Model number" />
