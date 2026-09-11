@@ -61,6 +61,11 @@ export default function ApplianceFormScreen() {
   const [withDefaults, setWithDefaults] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
+  const [scanTone, setScanTone] = useState<'success' | 'progress' | 'warning'>('progress');
+  const showScan = (message: string, tone: 'success' | 'progress' | 'warning') => {
+    setScanMessage(message);
+    setScanTone(tone);
+  };
   const [errors, setErrors] = useState<{
     name?: string;
     purchaseDate?: string;
@@ -97,7 +102,7 @@ export default function ApplianceFormScreen() {
       } else {
         const permission = await ImagePicker.requestCameraPermissionsAsync();
         if (!permission.granted) {
-          setScanMessage('Camera permission is needed to scan labels.');
+          showScan('Camera permission is needed to scan labels.', 'warning');
           return;
         }
         result = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true });
@@ -124,7 +129,10 @@ export default function ApplianceFormScreen() {
           .filter(Boolean)
           .join(', ');
         if (found) {
-          setScanMessage(`Label scanned ${how} — filled in ${found}. Double-check against the label.`);
+          showScan(
+            `Label scanned ${how} — filled in ${found}. Double-check against the label.`,
+            'success',
+          );
         }
         return !!found;
       };
@@ -137,7 +145,7 @@ export default function ApplianceFormScreen() {
       // 1) Online: AI vision — by far the most accurate reader for messy labels.
       let cloudFailure = '';
       if (isOnline) {
-        setScanMessage('Reading label with AI…');
+        showScan('Reading label with AI…', 'progress');
         const { data, error } = await supabase.functions.invoke('scan-label', {
           body: { imageBase64: asset.base64, mediaType },
         });
@@ -145,8 +153,9 @@ export default function ApplianceFormScreen() {
           const scan = data as LabelScanResult & { error?: string };
           if (!scan.error) {
             if (!applyScan(scan, 'with AI')) {
-              setScanMessage(
+              showScan(
                 "Couldn't read any details from that photo — try a closer, well-lit shot of the label.",
+                'warning',
               );
             }
             return;
@@ -174,8 +183,9 @@ export default function ApplianceFormScreen() {
 
       // 2) Offline (or cloud failed): on-device OCR where available.
       if (OFFLINE_OCR_AVAILABLE) {
-        setScanMessage(
+        showScan(
           isOnline ? 'AI scan unavailable — reading on this device…' : 'Offline — reading label on this device…',
+          'progress',
         );
         const ocrText = await runOfflineOcr(asset.base64, mediaType);
         const parsed = ocrText ? parseLabelText(ocrText) : {};
@@ -190,19 +200,21 @@ export default function ApplianceFormScreen() {
           'on this device',
         );
         if (!found) {
-          setScanMessage(
+          showScan(
             "Couldn't read any details from that photo — try a closer, straight-on, well-lit shot of the label, or enter the details manually.",
+            'warning',
           );
         }
       } else {
-        setScanMessage(
+        showScan(
           isOnline
             ? `The AI scan failed: ${cloudFailure || 'unknown error'}. Enter the details manually for now.`
             : 'Scanning on phones needs an internet connection — enter the details manually for now.',
+          'warning',
         );
       }
     } catch (e) {
-      setScanMessage(`Scan failed: ${e instanceof Error ? e.message : String(e)}`);
+      showScan(`Scan failed: ${e instanceof Error ? e.message : String(e)}`, 'warning');
     } finally {
       setScanning(false);
     }
@@ -253,7 +265,38 @@ export default function ApplianceFormScreen() {
         onPress={scanning ? () => {} : scanLabel}
       />
       {scanMessage ? (
-        <Text style={{ color: theme.textSecondary, fontSize: 13 }}>{scanMessage}</Text>
+        <View
+          style={[
+            styles.scanBanner,
+            {
+              borderColor:
+                scanTone === 'success'
+                  ? theme.success
+                  : scanTone === 'warning'
+                    ? theme.warning
+                    : theme.border,
+              backgroundColor: theme.backgroundElement,
+            },
+          ]}>
+          <Text style={styles.scanBannerIcon}>
+            {scanTone === 'success' ? '✅' : scanTone === 'warning' ? '⚠️' : '⏳'}
+          </Text>
+          <Text
+            style={{
+              flex: 1,
+              fontSize: 15,
+              fontWeight: '600',
+              lineHeight: 21,
+              color:
+                scanTone === 'success'
+                  ? theme.success
+                  : scanTone === 'warning'
+                    ? theme.warning
+                    : theme.textSecondary,
+            }}>
+            {scanMessage}
+          </Text>
+        </View>
       ) : null}
       <FormField
         label="Name *"
@@ -343,5 +386,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
+  },
+  scanBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    padding: 12,
+  },
+  scanBannerIcon: {
+    fontSize: 18,
+    lineHeight: 21,
   },
 });
