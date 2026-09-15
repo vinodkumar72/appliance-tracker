@@ -28,7 +28,12 @@ export function Screen({ children }: { children: ReactNode }) {
 export function Card({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   const theme = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement }, style]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        style,
+      ]}>
       {children}
     </View>
   );
@@ -59,7 +64,7 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: Badge
             ? theme.tint
             : theme.textSecondary;
   return (
-    <View style={[styles.badge, { borderColor: color }]}>
+    <View style={[styles.badge, { backgroundColor: `${color}1C` }]}>
       <Text style={[styles.badgeText, { color }]}>{label}</Text>
     </View>
   );
@@ -86,7 +91,9 @@ export function Button({
       style={({ pressed }) => [
         styles.button,
         compact && styles.buttonCompact,
-        { backgroundColor: background, opacity: pressed ? 0.75 : 1 },
+        variant === 'primary' && styles.buttonElevated,
+        variant === 'secondary' && { borderWidth: 1, borderColor: theme.border },
+        { backgroundColor: background, opacity: pressed ? 0.8 : 1 },
       ]}>
       <Text style={[styles.buttonText, compact && styles.buttonTextCompact, { color }]}>{title}</Text>
     </Pressable>
@@ -193,9 +200,15 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   card: {
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
     padding: Spacing.three,
     gap: Spacing.two,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -208,21 +221,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   badge: {
-    borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 10,
-    paddingVertical: 2,
+    paddingVertical: 3,
     alignSelf: 'flex-start',
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   button: {
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 13,
     paddingHorizontal: Spacing.three,
     alignItems: 'center',
+  },
+  buttonElevated: {
+    shadowColor: '#1D4ED8',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   buttonCompact: {
     paddingVertical: 6,
@@ -230,7 +249,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   buttonTextCompact: {
     fontSize: 13,
@@ -246,9 +265,9 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 16,
   },
   chipRow: {

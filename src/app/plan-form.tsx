@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { Button, EmptyState, FormField, Screen } from '@/components/ui';
+import { Button, ChipPicker, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructive } from '@/lib/confirm';
@@ -22,11 +22,21 @@ export default function PlanFormScreen() {
   const existing = id ? plans.find((p) => p.id === id) : undefined;
 
   const [name, setName] = useState(existing?.name ?? '');
+  const [emoji, setEmoji] = useState(existing?.emoji ?? '');
   const [yearlyPrice, setYearlyPrice] = useState(
     existing ? String(existing.yearlyPrice) : '0',
   );
-  const [maxProperties, setMaxProperties] = useState(
-    existing?.maxProperties != null ? String(existing.maxProperties) : '',
+  const [monthlyPrice, setMonthlyPrice] = useState(
+    existing?.monthlyPrice != null ? String(existing.monthlyPrice) : '',
+  );
+  const [mostPopular, setMostPopular] = useState<'yes' | 'no'>(
+    existing?.mostPopular ? 'yes' : 'no',
+  );
+  const [maxUnits, setMaxUnits] = useState(
+    existing?.maxUnits != null ? String(existing.maxUnits) : '',
+  );
+  const [minUnits, setMinUnits] = useState(
+    existing?.minUnits != null ? String(existing.minUnits) : '',
   );
   const [maxAppliances, setMaxAppliances] = useState(
     existing?.maxAppliancesPerProperty != null ? String(existing.maxAppliancesPerProperty) : '',
@@ -35,7 +45,9 @@ export default function PlanFormScreen() {
   const [errors, setErrors] = useState<{
     name?: string;
     yearlyPrice?: string;
-    maxProperties?: string;
+    monthlyPrice?: string;
+    maxUnits?: string;
+    minUnits?: string;
     maxAppliances?: string;
     trialDays?: string;
   }>({});
@@ -57,9 +69,18 @@ export default function PlanFormScreen() {
     if (!name.trim()) nextErrors.name = 'Plan name is required.';
     const price = Number(yearlyPrice.replace(/[$,]/g, ''));
     if (Number.isNaN(price) || price < 0) nextErrors.yearlyPrice = 'Enter a valid amount (0 = free).';
-    const max = maxProperties.trim() === '' ? undefined : Number(maxProperties);
+    const monthly =
+      monthlyPrice.trim() === '' ? undefined : Number(monthlyPrice.replace(/[$,]/g, ''));
+    if (monthly !== undefined && (Number.isNaN(monthly) || monthly < 0)) {
+      nextErrors.monthlyPrice = 'Enter a valid amount, or leave blank for annual-only billing.';
+    }
+    const max = maxUnits.trim() === '' ? undefined : Number(maxUnits);
     if (max !== undefined && (!Number.isInteger(max) || max < 1)) {
-      nextErrors.maxProperties = 'Whole number, or leave blank for unlimited.';
+      nextErrors.maxUnits = 'Whole number, or leave blank for unlimited.';
+    }
+    const min = minUnits.trim() === '' ? undefined : Number(minUnits);
+    if (min !== undefined && (!Number.isInteger(min) || min < 1)) {
+      nextErrors.minUnits = 'Whole number, or leave blank.';
     }
     const maxAppl = maxAppliances.trim() === '' ? undefined : Number(maxAppliances);
     if (maxAppl !== undefined && (!Number.isInteger(maxAppl) || maxAppl < 1)) {
@@ -74,8 +95,12 @@ export default function PlanFormScreen() {
 
     const data = {
       name: name.trim(),
+      emoji: emoji.trim() || undefined,
       yearlyPrice: price,
-      maxProperties: max,
+      monthlyPrice: monthly,
+      mostPopular: mostPopular === 'yes' ? true : undefined,
+      maxUnits: max,
+      minUnits: min,
       maxAppliancesPerProperty: maxAppl,
       trialDays: trial,
     };
@@ -94,11 +119,17 @@ export default function PlanFormScreen() {
         label="Plan name *"
         value={name}
         onChangeText={setName}
-        placeholder="e.g. Free, Pro, Enterprise"
+        placeholder="e.g. Free, Starter, Growth, Scale"
         error={errors.name}
       />
       <FormField
-        label="Yearly price ($) *"
+        label="Emoji (shown on the pricing page)"
+        value={emoji}
+        onChangeText={setEmoji}
+        placeholder="e.g. 🚀"
+      />
+      <FormField
+        label="Yearly price ($/year, billed annually) *"
         value={yearlyPrice}
         onChangeText={setYearlyPrice}
         placeholder="0 for a free tier"
@@ -106,13 +137,40 @@ export default function PlanFormScreen() {
         error={errors.yearlyPrice}
       />
       <FormField
-        label="Property limit"
-        value={maxProperties}
-        onChangeText={setMaxProperties}
+        label="Monthly price ($/month, billed monthly)"
+        value={monthlyPrice}
+        onChangeText={setMonthlyPrice}
+        placeholder="Leave blank for annual billing only"
+        keyboardType="decimal-pad"
+        error={errors.monthlyPrice}
+      />
+      <ChipPicker
+        label='Highlight as "Most popular"'
+        options={[
+          { value: 'no', label: 'No' },
+          { value: 'yes', label: 'Yes' },
+        ]}
+        value={mostPopular}
+        onChange={setMostPopular}
+      />
+      <FormField
+        label="Unit limit (homes with no units count as 1)"
+        value={maxUnits}
+        onChangeText={setMaxUnits}
         placeholder="Leave blank for unlimited"
         keyboardType="number-pad"
-        error={errors.maxProperties}
+        error={errors.maxUnits}
       />
+      {maxUnits.trim() === '' ? (
+        <FormField
+          label='Starts at (units) — shown as "Unlimited (starts at N)"'
+          value={minUnits}
+          onChangeText={setMinUnits}
+          placeholder="e.g. 100 (optional)"
+          keyboardType="number-pad"
+          error={errors.minUnits}
+        />
+      ) : null}
       <FormField
         label="Appliance limit per unit"
         value={maxAppliances}

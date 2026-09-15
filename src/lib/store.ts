@@ -236,7 +236,7 @@ export const useAppStore = create<AppState>()(
           // New companies start on the most generous free tier, when one exists.
           const freePlan = s.plans
             .filter((p) => p.yearlyPrice === 0)
-            .sort((a, b) => (b.maxProperties ?? Infinity) - (a.maxProperties ?? Infinity))[0];
+            .sort((a, b) => (b.maxUnits ?? Infinity) - (a.maxUnits ?? Infinity))[0];
           return {
             organizations: [
               ...s.organizations,
@@ -566,7 +566,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'appliance-tracker-v1',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({
         organizations: s.organizations,
@@ -614,6 +614,17 @@ export const useAppStore = create<AppState>()(
         if (version < 4) {
           state.plans = state.plans ?? [];
           state.subscriptions = state.subscriptions ?? [];
+        }
+        if (version < 5) {
+          // Plans now limit units instead of properties; carry the number over.
+          state.plans = (state.plans ?? []).map((p) => {
+            const legacy = p as Plan & { maxProperties?: number };
+            if (legacy.maxProperties !== undefined && legacy.maxUnits === undefined) {
+              const { maxProperties, ...rest } = legacy;
+              return { ...rest, maxUnits: maxProperties };
+            }
+            return p;
+          });
         }
         return state;
       },

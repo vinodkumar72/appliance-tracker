@@ -11,11 +11,15 @@ const MIN_INTERVAL_MS = 15_000;
 /** How long after the last local change before it auto-uploads. */
 const CHANGE_DEBOUNCE_MS = 4_000;
 
+/** While the app is open, also pull remote changes this often. */
+const PERIODIC_SYNC_MS = 60_000;
+
 /**
  * Background auto-sync triggers, mounted once for the whole app:
  * - a local change being made (debounced — a burst of edits = one sync)
  * - connectivity returning (offline → online)
  * - the app coming back to the foreground
+ * - a periodic refresh while the app sits open (picks up other devices' changes)
  * Each fires only when signed in; syncNow() itself prevents overlapping runs.
  */
 export function useAutoSync() {
@@ -69,11 +73,16 @@ export function useAutoSync() {
       }, CHANGE_DEBOUNCE_MS);
     });
 
+    // Periodic refresh: an open, idle app still learns about changes made on
+    // other devices (the browser sees the phone's new repair within a minute).
+    const interval = setInterval(() => void trySync(), PERIODIC_SYNC_MS);
+
     return () => {
       unsubscribeNet?.();
       appStateSub.remove();
       unsubscribeStore();
       if (changeTimer) clearTimeout(changeTimer);
+      clearInterval(interval);
     };
   }, []);
 }

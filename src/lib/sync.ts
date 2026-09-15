@@ -206,8 +206,12 @@ const fromScheduleRow = (r: Row): Schedule => ({
 const toPlanRow = (p: Plan): Row => ({
   id: p.id,
   name: p.name,
+  emoji: nul(p.emoji),
   yearly_price: p.yearlyPrice,
-  max_properties: p.maxProperties ?? null,
+  monthly_price: p.monthlyPrice ?? null,
+  most_popular: p.mostPopular ?? false,
+  max_units: p.maxUnits ?? null,
+  min_units: p.minUnits ?? null,
   max_appliances_per_property: p.maxAppliancesPerProperty ?? null,
   trial_days: p.trialDays,
   created_at: nul(p.createdAt),
@@ -216,8 +220,18 @@ const toPlanRow = (p: Plan): Row => ({
 const fromPlanRow = (r: Row): Plan => ({
   id: r.id,
   name: r.name,
+  emoji: r.emoji ?? undefined,
   yearlyPrice: Number(r.yearly_price),
-  maxProperties: r.max_properties === null ? undefined : Number(r.max_properties),
+  monthlyPrice: r.monthly_price === null ? undefined : Number(r.monthly_price),
+  mostPopular: r.most_popular ? true : undefined,
+  // Older rows only have max_properties; treat that value as the unit limit.
+  maxUnits:
+    r.max_units !== null && r.max_units !== undefined
+      ? Number(r.max_units)
+      : r.max_properties === null || r.max_properties === undefined
+        ? undefined
+        : Number(r.max_properties),
+  minUnits: r.min_units === null || r.min_units === undefined ? undefined : Number(r.min_units),
   maxAppliancesPerProperty:
     r.max_appliances_per_property === null ? undefined : Number(r.max_appliances_per_property),
   trialDays: Number(r.trial_days),
@@ -366,12 +380,23 @@ export interface SyncResult {
   error?: string;
 }
 
-let syncing = false;
+let inFlight: Promise<SyncResult> | null = null;
 
-/** Push local changes since the last sync, then pull remote changes. Last write wins. */
-export async function syncNow(): Promise<SyncResult> {
-  if (syncing) return { ok: false, pushed: 0, pulled: 0, error: 'Sync already running.' };
-  syncing = true;
+/**
+ * Push local changes since the last sync, then pull remote changes. Last write wins.
+ * Concurrent calls (e.g. pressing Sync now while a background sync runs) share
+ * the in-flight run's result instead of failing.
+ */
+export function syncNow(): Promise<SyncResult> {
+  if (!inFlight) {
+    inFlight = runSync().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
+async function runSync(): Promise<SyncResult> {
   try {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) {
@@ -534,7 +559,5 @@ export async function syncNow(): Promise<SyncResult> {
     return { ok: true, pushed, pulled };
   } catch (e) {
     return { ok: false, pushed: 0, pulled: 0, error: e instanceof Error ? e.message : String(e) };
-  } finally {
-    syncing = false;
   }
 }

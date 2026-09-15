@@ -337,8 +337,8 @@ export function buildSeedData(): {
   ];
 
   const plans: Plan[] = [
-    { id: 'plan-free', name: 'Free', yearlyPrice: 0, maxProperties: 5, maxAppliancesPerProperty: 10, trialDays: 0, createdAt: monthsAgo(6) },
-    { id: 'plan-pro', name: 'Pro', yearlyPrice: 499, maxProperties: 50, trialDays: 14, createdAt: monthsAgo(6) },
+    { id: 'plan-free', name: 'Free Tier', emoji: '🎁', yearlyPrice: 0, maxUnits: 3, maxAppliancesPerProperty: 10, trialDays: 0, createdAt: monthsAgo(6) },
+    { id: 'plan-growth', name: 'Growth', emoji: '🚀', yearlyPrice: 588, monthlyPrice: 59, mostPopular: true, maxUnits: 50, trialDays: 14, createdAt: monthsAgo(6) },
     { id: 'plan-enterprise', name: 'Enterprise', yearlyPrice: 1499, trialDays: 30, createdAt: monthsAgo(6) },
   ];
 

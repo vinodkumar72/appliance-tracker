@@ -49,6 +49,35 @@ export default function OrganizationScreen() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  interface OnboardingRequest {
+    id: string;
+    company_name: string;
+    contact_name: string;
+    email: string;
+    phone: string | null;
+    message: string | null;
+    created_at: string;
+  }
+  const [requests, setRequests] = useState<OnboardingRequest[]>([]);
+  const loadRequests = async () => {
+    if (!isPlatformAdmin || !authSession) return;
+    const { data } = await supabase
+      .from('onboarding_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    setRequests((data as OnboardingRequest[]) ?? []);
+  };
+  useEffect(() => {
+    void loadRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlatformAdmin, !!authSession]);
+
+  const dismissRequest = async (requestId: string) => {
+    await supabase.from('onboarding_requests').update({ status: 'dismissed' }).eq('id', requestId);
+    void loadRequests();
+  };
+
   const signOut = () =>
     confirmDestructive(
       'Sign out?',
@@ -181,6 +210,44 @@ export default function OrganizationScreen() {
         <Button title="+ Onboard company" onPress={() => router.push('/org-form')} />
       ) : null}
 
+      {isPlatformAdmin && requests.length > 0 ? (
+        <>
+          <SectionHeader title={`Onboarding requests (${requests.length})`} />
+          {requests.map((request) => (
+            <Card key={request.id}>
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
+                {request.company_name}
+              </Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                {request.contact_name} · {request.email}
+                {request.phone ? ` · ${request.phone}` : ''} ·{' '}
+                {new Date(request.created_at).toLocaleDateString()}
+              </Text>
+              {request.message ? (
+                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{request.message}</Text>
+              ) : null}
+              <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: 4 }}>
+                <Button
+                  title="Onboard"
+                  compact
+                  onPress={() =>
+                    router.push(
+                      `/org-form?requestId=${request.id}&company=${encodeURIComponent(request.company_name)}&owner=${encodeURIComponent(request.contact_name)}&email=${encodeURIComponent(request.email)}`,
+                    )
+                  }
+                />
+                <Button
+                  title="Dismiss"
+                  variant="secondary"
+                  compact
+                  onPress={() => void dismissRequest(request.id)}
+                />
+              </View>
+            </Card>
+          ))}
+        </>
+      ) : null}
+
       {isPlatformAdmin ? (
         <>
           <SectionHeader
@@ -213,10 +280,9 @@ export default function OrganizationScreen() {
                       {plan.name}
                     </Text>
                     <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                      {plan.yearlyPrice === 0 ? 'Free' : `$${plan.yearlyPrice}/year`} ·{' '}
-                      {plan.maxProperties != null
-                        ? `up to ${plan.maxProperties} properties`
-                        : 'unlimited properties'}
+                      {plan.yearlyPrice === 0 ? 'Free' : `$${plan.yearlyPrice}/year`}
+                      {plan.monthlyPrice != null ? ` (or $${plan.monthlyPrice}/mo)` : ''} ·{' '}
+                      {plan.maxUnits != null ? `up to ${plan.maxUnits} units` : 'unlimited units'}
                       {plan.maxAppliancesPerProperty != null
                         ? ` · ${plan.maxAppliancesPerProperty} appliances/unit`
                         : ''}
@@ -251,9 +317,9 @@ export default function OrganizationScreen() {
               />
             </View>
             <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-              {currentOrgPlan.propertyCount} of{' '}
+              {currentOrgPlan.unitCount} of{' '}
               {currentOrgPlan.effectiveMax != null ? currentOrgPlan.effectiveMax : 'unlimited'}{' '}
-              properties used.
+              units used (a property with no units counts as 1).
               {currentOrgPlan.status === 'expired'
                 ? ' The paid plan lapsed, so free-tier limits apply — existing data is untouched.'
                 : ''}

@@ -1,7 +1,10 @@
 import type { Session } from '@supabase/supabase-js';
+import { usePathname } from 'expo-router';
 import { ReactNode, useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
+import { Landing } from '@/components/landing';
+import { SignInForm } from '@/components/sign-in-form';
 import { Button, Card, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -14,12 +17,16 @@ import { syncNow } from '@/lib/sync';
  * Front door of the app: requires a signed-in account (or explicit offline
  * demo mode) before showing anything else. Sessions persist on-device, so a
  * user signs in once and the app keeps working offline afterwards.
+ *
+ * IMPORTANT: the router's navigator (children) must stay mounted at all
+ * times — unmounting it mid-navigation makes expo-router's store loop
+ * ("maximum update depth exceeded"). Gate screens therefore render as an
+ * opaque layer while the (hidden) navigator stays alive underneath.
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const theme = useTheme();
   useAutoSync();
   const demoMode = useAppStore((s) => s.demoMode);
-  const setDemoMode = useAppStore((s) => s.setDemoMode);
   const hydrated = useAppStore((s) => s.hydrated);
   const storeSession = useAppStore((s) => s.session);
   const users = useAppStore((s) => s.users);
@@ -30,8 +37,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   const [session, setSession] = useState<Session | null>(null);
   const [checked, setChecked] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   // Arrived via an invitation or password-reset link → ask them to set a password.
@@ -42,6 +47,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   );
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const pathname = usePathname();
   // Invited users complete their profile (phone, company address) on arrival.
   const [needsProfile, setNeedsProfile] = useState(initialAuthLinkType === 'invite');
   const [userPhone, setUserPhone] = useState('');
@@ -64,11 +70,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  if (!checked || !hydrated) {
-    return <View style={{ flex: 1, backgroundColor: theme.background }} />;
-  }
+  // ----- Compute the gate overlay (null = show the app) -----
+  let overlay: ReactNode = null;
 
-  if (session && needsPassword) {
+  if (!checked || !hydrated) {
+    overlay = <View style={{ flex: 1, backgroundColor: theme.background }} />;
+  } else if (session && needsPassword) {
     const savePassword = async () => {
       if (newPassword.length < 6) {
         setMessage('Password must be at least 6 characters.');
@@ -88,7 +95,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
       setMessage('');
       setNeedsPassword(false);
     };
-    return (
+    overlay = (
       <Screen>
         <View style={styles.header}>
           <Text style={styles.logo}>👋</Text>
@@ -126,207 +133,132 @@ export function AuthGate({ children }: { children: ReactNode }) {
         ) : null}
       </Screen>
     );
-  }
+  } else {
+    // Step 2 for invited users: complete profile (phone + company address).
+    const currentUser = users.find((u) => u.id === storeSession.currentUserId);
+    const ownedOrg = organizations.find((o) =>
+      memberships.some(
+        (m) => m.orgId === o.id && m.userId === currentUser?.id && m.role === 'owner',
+      ),
+    );
+    const profileIncomplete =
+      !currentUser || !currentUser.phone || (!!ownedOrg && !ownedOrg.address);
 
-  // Step 2 for invited users: complete profile (phone + company address).
-  const currentUser = users.find((u) => u.id === storeSession.currentUserId);
-  const ownedOrg = organizations.find((o) =>
-    memberships.some(
-      (m) => m.orgId === o.id && m.userId === currentUser?.id && m.role === 'owner',
-    ),
-  );
-  const profileIncomplete =
-    !currentUser || !currentUser.phone || (!!ownedOrg && !ownedOrg.address);
-
-  if (session && !needsPassword && needsProfile && profileIncomplete) {
-    const saveProfile = () => {
-      if (!currentUser) return;
-      if (!userPhone.trim()) {
-        setMessage('Please enter your phone number.');
-        return;
-      }
-      if (ownedOrg && !companyAddress.trim()) {
-        setMessage("Please enter your company's address.");
-        return;
-      }
-      updateUserProfile(currentUser.id, { phone: userPhone.trim() });
-      if (ownedOrg) {
-        updateOrganization(ownedOrg.id, {
-          address: companyAddress.trim(),
-          ...(companyPhone.trim() ? { phone: companyPhone.trim() } : {}),
-        });
-      }
-      setMessage('');
-      setNeedsProfile(false);
-      syncNow().catch(() => {});
-    };
-    return (
-      <Screen>
-        <View style={styles.header}>
-          <Text style={styles.logo}>📋</Text>
-          <Text style={[styles.title, { color: theme.text }]}>Complete your profile</Text>
-          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-            {currentUser
-              ? ownedOrg
-                ? `A few details for ${ownedOrg.name} before you get started.`
-                : 'A few details before you get started.'
-              : 'Setting up your account…'}
-          </Text>
-        </View>
-        {currentUser ? (
-          <>
-            <FormField
-              label="Your phone number *"
-              value={userPhone}
-              onChangeText={setUserPhone}
-              placeholder="+1 (555) 123-4567"
-              keyboardType="phone-pad"
-            />
-            {ownedOrg ? (
-              <>
-                <FormField
-                  label="Company address *"
-                  value={companyAddress}
-                  onChangeText={setCompanyAddress}
-                  placeholder="Street, city, state, ZIP"
-                  multiline
-                />
-                <FormField
-                  label="Company phone"
-                  value={companyPhone}
-                  onChangeText={setCompanyPhone}
-                  placeholder="Main office number (optional)"
-                  keyboardType="phone-pad"
-                />
-              </>
-            ) : null}
-            <View style={{ gap: Spacing.two }}>
-              <Button title="Save & continue" onPress={saveProfile} />
-              <Button
-                title="Skip for now"
-                variant="secondary"
-                onPress={() => setNeedsProfile(false)}
+    if (session && needsProfile && profileIncomplete) {
+      const saveProfile = () => {
+        if (!currentUser) return;
+        if (!userPhone.trim()) {
+          setMessage('Please enter your phone number.');
+          return;
+        }
+        if (ownedOrg && !companyAddress.trim()) {
+          setMessage("Please enter your company's address.");
+          return;
+        }
+        updateUserProfile(currentUser.id, { phone: userPhone.trim() });
+        if (ownedOrg) {
+          updateOrganization(ownedOrg.id, {
+            address: companyAddress.trim(),
+            ...(companyPhone.trim() ? { phone: companyPhone.trim() } : {}),
+          });
+        }
+        setMessage('');
+        setNeedsProfile(false);
+        syncNow().catch(() => {});
+      };
+      overlay = (
+        <Screen>
+          <View style={styles.header}>
+            <Text style={styles.logo}>📋</Text>
+            <Text style={[styles.title, { color: theme.text }]}>Complete your profile</Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              {currentUser
+                ? ownedOrg
+                  ? `A few details for ${ownedOrg.name} before you get started.`
+                  : 'A few details before you get started.'
+                : 'Setting up your account…'}
+            </Text>
+          </View>
+          {currentUser ? (
+            <>
+              <FormField
+                label="Your phone number *"
+                value={userPhone}
+                onChangeText={setUserPhone}
+                placeholder="+1 (555) 123-4567"
+                keyboardType="phone-pad"
               />
+              {ownedOrg ? (
+                <>
+                  <FormField
+                    label="Company address *"
+                    value={companyAddress}
+                    onChangeText={setCompanyAddress}
+                    placeholder="Street, city, state, ZIP"
+                    multiline
+                  />
+                  <FormField
+                    label="Company phone"
+                    value={companyPhone}
+                    onChangeText={setCompanyPhone}
+                    placeholder="Main office number (optional)"
+                    keyboardType="phone-pad"
+                  />
+                </>
+              ) : null}
+              <View style={{ gap: Spacing.two }}>
+                <Button title="Save & continue" onPress={saveProfile} />
+                <Button
+                  title="Skip for now"
+                  variant="secondary"
+                  onPress={() => setNeedsProfile(false)}
+                />
+              </View>
+            </>
+          ) : null}
+          {message ? (
+            <Card>
+              <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{message}</Text>
+            </Card>
+          ) : null}
+        </Screen>
+      );
+    } else if (!session && !demoMode) {
+      if (Platform.OS !== 'web') {
+        // The marketing site is web-only. On iOS/Android, a signed-out user
+        // gets exactly one screen: sign in.
+        overlay = (
+          <Screen>
+            <View style={styles.header}>
+              <Text style={styles.logo}>🏠</Text>
+              <Text style={[styles.title, { color: theme.text }]}>Appliance Tracker</Text>
+              <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+                Sign in to your company account.
+              </Text>
             </View>
-          </>
-        ) : null}
-        {message ? (
-          <Card>
-            <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{message}</Text>
-          </Card>
-        ) : null}
-      </Screen>
-    );
+            <SignInForm variant="native" />
+          </Screen>
+        );
+      } else {
+        // Web: public pages are reachable without an account.
+        const PUBLIC_PATHS = ['/about', '/pricing', '/request-invite', '/sign-in', '/how-it-works'];
+        if (!PUBLIC_PATHS.includes(pathname)) {
+          // Signed-out web visitors get the marketing homepage.
+          overlay = <Landing />;
+        }
+      }
+    }
   }
 
-  if (session || demoMode) {
-    return <>{children}</>;
-  }
-
-  const signIn = async () => {
-    setBusy(true);
-    setMessage('');
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
-    if (error) {
-      setMessage(error.message);
-      setBusy(false);
-      return;
-    }
-    setBusy(false);
-    // Session change unlocks the app; link + pull data in the background.
-    syncNow().catch(() => {});
-  };
-
-  const signUp = async () => {
-    setBusy(true);
-    setMessage('');
-    const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
-    if (error) {
-      setMessage(error.message);
-    } else if (!data.session) {
-      setMessage('Account created — check your email for a confirmation link, then sign in.');
-    } else {
-      syncNow().catch(() => {});
-    }
-    setBusy(false);
-  };
-
-  const forgotPassword = async () => {
-    if (!email.trim()) {
-      setMessage('Enter your email above first, then tap "Forgot password?" again.');
-      return;
-    }
-    setBusy(true);
-    const redirectTo =
-      typeof window !== 'undefined' && window.location?.origin ? window.location.origin : undefined;
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim(),
-      redirectTo ? { redirectTo } : undefined,
-    );
-    setMessage(
-      error
-        ? `Could not send reset email: ${error.message}`
-        : `Password reset email sent to ${email.trim()} — open the link and you'll be asked to choose a new password.`,
-    );
-    setBusy(false);
-  };
-
+  // The navigator (children) must always stay mounted — hide it under the
+  // gate overlay instead of unmounting it.
   return (
-    <Screen>
-      <View style={styles.header}>
-        <Text style={styles.logo}>🏠</Text>
-        <Text style={[styles.title, { color: theme.text }]}>Appliance Tracker</Text>
-        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Appliance maintenance, warranties, and repairs for property managers and owners.
-        </Text>
-      </View>
-
-      <FormField
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="you@company.com"
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <FormField
-        label="Password"
-        value={password}
-        onChangeText={setPassword}
-        placeholder="Your password"
-        secureTextEntry
-      />
-      <View style={{ gap: Spacing.two }}>
-        <Button title={busy ? 'Working…' : 'Sign in'} onPress={busy ? () => {} : signIn} />
-        <Button
-          title="Create account"
-          variant="secondary"
-          onPress={busy ? () => {} : signUp}
-        />
-        <Button
-          title="Forgot password?"
-          variant="secondary"
-          onPress={busy ? () => {} : forgotPassword}
-        />
-        <Button
-          title="Continue offline (demo)"
-          variant="secondary"
-          onPress={() => setDemoMode(true)}
-        />
-      </View>
-      <Text style={[styles.hint, { color: theme.textSecondary }]}>
-        Invited by your company? Use the link in your invitation email, or create an account with
-        the same email address it was sent to.
-      </Text>
-      {message ? (
-        <Card>
-          <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{message}</Text>
-        </Card>
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, display: overlay ? 'none' : 'flex' }}>{children}</View>
+      {overlay ? (
+        <View style={{ flex: 1, backgroundColor: theme.background }}>{overlay}</View>
       ) : null}
-    </Screen>
+    </View>
   );
 }
 
@@ -347,9 +279,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 420,
-  },
-  hint: {
-    fontSize: 12,
-    textAlign: 'center',
   },
 });

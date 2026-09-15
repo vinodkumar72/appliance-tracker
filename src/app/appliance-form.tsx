@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
@@ -86,6 +86,14 @@ export default function ApplianceFormScreen() {
     warrantyExpiry?: string;
   }>({});
 
+  // Opened without a target property (stale link, deleted property): leave —
+  // but never navigate during render; that re-triggers itself and trips
+  // React's "maximum update depth exceeded" guard.
+  useEffect(() => {
+    if (!targetPropertyId) router.back();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetPropertyId]);
+
   if (!can(role, 'editProperties')) {
     return (
       <Screen>
@@ -95,7 +103,6 @@ export default function ApplianceFormScreen() {
   }
 
   if (!targetPropertyId) {
-    router.back();
     return null;
   }
 

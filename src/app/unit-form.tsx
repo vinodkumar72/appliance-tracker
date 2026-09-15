@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import { Button, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useOrgPlan } from '@/lib/billing';
 import { confirmDestructive } from '@/lib/confirm';
 import { can } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
@@ -22,6 +23,13 @@ export default function UnitFormScreen() {
 
   const existing = id ? unitsAll.find((u) => u.id === id) : undefined;
   const targetPropertyId = existing?.propertyId ?? propertyId;
+  const properties = useAppStore((s) => s.properties);
+  const targetProperty = properties.find((p) => p.id === targetPropertyId);
+  const planInfo = useOrgPlan(targetProperty?.orgId);
+  // A property's first unit doesn't raise the unit count (the property already
+  // counted as 1); each unit after that consumes plan quota.
+  const siblingUnits = unitsAll.filter((u) => u.propertyId === targetPropertyId).length;
+  const blockedByPlan = !existing && siblingUnits >= 1 && !!planInfo?.atLimit;
 
   const [name, setName] = useState(existing?.name ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
@@ -37,6 +45,18 @@ export default function UnitFormScreen() {
     return (
       <Screen>
         <EmptyState emoji="🔒" title="No permission" message="Your role can't edit units." />
+      </Screen>
+    );
+  }
+
+  if (blockedByPlan && planInfo) {
+    return (
+      <Screen>
+        <EmptyState
+          emoji="📈"
+          title="Plan limit reached"
+          message={`The ${planInfo.plan?.name ?? 'current'} plan covers ${planInfo.effectiveMax} units (${planInfo.unitCount} in use). Upgrade the company's plan to add more.`}
+        />
       </Screen>
     );
   }

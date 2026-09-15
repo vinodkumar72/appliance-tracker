@@ -102,13 +102,19 @@ create table public.schedules (
   updated_at timestamptz not null default now()
 );
 
--- Pricing tiers configured by the platform owner.
+-- Pricing tiers configured by the platform owner. Plans are priced per UNIT
+-- (a property with no units counts as 1 unit).
 create table public.plans (
   id text primary key,
   name text not null,
-  yearly_price numeric not null default 0,
-  max_properties integer,                 -- null = unlimited
-  max_appliances_per_property integer,    -- null = unlimited
+  emoji text,                             -- shown on the public pricing table
+  yearly_price numeric not null default 0,   -- $/year when billed annually
+  monthly_price numeric,                  -- $/month when billed monthly; null = annual only
+  most_popular boolean not null default false,
+  max_units integer,                      -- null = unlimited
+  min_units integer,                      -- unlimited tiers: "starts at N units" (display only)
+  max_properties integer,                 -- legacy pre-unit-pricing limit, no longer used
+  max_appliances_per_property integer,    -- appliance limit per unit; null = unlimited
   trial_days integer not null default 0,
   created_at text,
   updated_at timestamptz not null default now()
@@ -277,9 +283,10 @@ alter table public.plans enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.deletions enable row level security;
 
--- plans: everyone signed in can read the pricing; only the platform owner edits.
+-- plans: public pricing — anyone may read; only the platform owner edits.
 create policy plans_select on public.plans for select
-  using (auth.uid() is not null);
+  to anon, authenticated
+  using (true);
 create policy plans_insert on public.plans for insert
   with check (public.is_platform_admin());
 create policy plans_update on public.plans for update
@@ -414,3 +421,35 @@ create policy deletions_select on public.deletions for select
   using (auth.uid() is not null);
 create policy deletions_insert on public.deletions for insert
   with check (auth.uid() is not null);
+
+-- Invite requests from prospective customers (see migration-007).
+create table public.onboarding_requests (
+  id uuid primary key default gen_random_uuid(),
+  company_name text not null,
+  contact_name text not null,
+  email text not null,
+  phone text,
+  message text,
+  status text not null default 'pending' check (status in ('pending','onboarded','dismissed')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.onboarding_requests enable row level security;
+
+create policy requests_insert on public.onboarding_requests for insert
+  to anon, authenticated
+  with check (
+    char_length(company_name) between 1 and 200
+    and char_length(contact_name) between 1 and 200
+    and char_length(email) between 3 and 320
+    and (phone is null or char_length(phone) <= 50)
+    and (message is null or char_length(message) <= 2000)
+    and status = 'pending'
+  );
+
+create policy requests_select on public.onboarding_requests for select
+  using (public.is_platform_admin());
+create policy requests_update on public.onboarding_requests for update
+  using (public.is_platform_admin());
+create policy requests_delete on public.onboarding_requests for delete
+  using (public.is_platform_admin());

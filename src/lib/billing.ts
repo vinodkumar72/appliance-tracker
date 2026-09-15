@@ -6,7 +6,7 @@ export interface PlanStatus {
   /** The plan the org is signed up for (null = none assigned). */
   plan: Plan | null;
   status: 'none' | 'free' | 'trial' | 'active' | 'expired';
-  /** Property limit currently in force (expired subs fall back to the free tier). */
+  /** Unit limit currently in force (expired subs fall back to the free tier). */
   effectiveMax: number | null; // null = unlimited
   /** Appliance-per-property limit currently in force. */
   effectiveMaxAppliances: number | null; // null = unlimited
@@ -18,9 +18,7 @@ export interface PlanStatus {
 export function findFreePlan(plans: Plan[]): Plan | null {
   const free = plans.filter((p) => p.yearlyPrice === 0);
   if (free.length === 0) return null;
-  return free.sort(
-    (a, b) => (b.maxProperties ?? Infinity) - (a.maxProperties ?? Infinity),
-  )[0];
+  return free.sort((a, b) => (b.maxUnits ?? Infinity) - (a.maxUnits ?? Infinity))[0];
 }
 
 export function getPlanStatus(
@@ -29,7 +27,7 @@ export function getPlanStatus(
   orgId: string,
 ): PlanStatus {
   const freePlan = findFreePlan(plans);
-  const freeMax = freePlan ? (freePlan.maxProperties ?? null) : 0;
+  const freeMax = freePlan ? (freePlan.maxUnits ?? null) : 0;
   const freeMaxAppliances = freePlan ? (freePlan.maxAppliancesPerProperty ?? null) : 0;
   const sub = subscriptions.find((s) => s.orgId === orgId) ?? null;
   const plan = sub ? (plans.find((p) => p.id === sub.planId) ?? null) : null;
@@ -61,7 +59,7 @@ export function getPlanStatus(
     return {
       plan,
       status: 'free',
-      effectiveMax: plan.maxProperties ?? null,
+      effectiveMax: plan.maxUnits ?? null,
       effectiveMaxAppliances: plan.maxAppliancesPerProperty ?? null,
       trialDaysLeft: null,
       renewsAt: null,
@@ -74,7 +72,7 @@ export function getPlanStatus(
       return {
         plan,
         status: 'trial',
-        effectiveMax: plan.maxProperties ?? null,
+        effectiveMax: plan.maxUnits ?? null,
         effectiveMaxAppliances: plan.maxAppliancesPerProperty ?? null,
         trialDaysLeft: left,
         renewsAt: null,
@@ -104,7 +102,7 @@ export function getPlanStatus(
   return {
     plan,
     status: 'active',
-    effectiveMax: plan.maxProperties ?? null,
+    effectiveMax: plan.maxUnits ?? null,
     effectiveMaxAppliances: plan.maxAppliancesPerProperty ?? null,
     trialDaysLeft: null,
     renewsAt: end,
@@ -112,20 +110,36 @@ export function getPlanStatus(
 }
 
 export interface OrgPlanInfo extends PlanStatus {
-  propertyCount: number;
+  /** Units in use: each property counts its units, or 1 if it has none. */
+  unitCount: number;
   atLimit: boolean;
 }
 
-/** Plan status + usage for an org. Counts ALL org properties, not just those visible to the viewer. */
+/**
+ * Units an org has in use, the metric plans are priced on: a single-family
+ * home (no units) counts as 1, a 20-unit condo counts as 20.
+ */
+export function countOrgUnits(
+  orgId: string,
+  properties: { id: string; orgId: string }[],
+  units: { propertyId: string }[],
+): number {
+  return properties
+    .filter((p) => p.orgId === orgId)
+    .reduce((sum, p) => sum + Math.max(1, units.filter((u) => u.propertyId === p.id).length), 0);
+}
+
+/** Plan status + usage for an org. Counts ALL org units, not just those visible to the viewer. */
 export function useOrgPlan(orgId: string | null | undefined): OrgPlanInfo | null {
   const plans = useAppStore((s) => s.plans);
   const subscriptions = useAppStore((s) => s.subscriptions);
   const properties = useAppStore((s) => s.properties);
+  const units = useAppStore((s) => s.units);
   if (!orgId) return null;
   const status = getPlanStatus(plans, subscriptions, orgId);
-  const propertyCount = properties.filter((p) => p.orgId === orgId).length;
-  const atLimit = status.effectiveMax !== null && propertyCount >= status.effectiveMax;
-  return { ...status, propertyCount, atLimit };
+  const unitCount = countOrgUnits(orgId, properties, units);
+  const atLimit = status.effectiveMax !== null && unitCount >= status.effectiveMax;
+  return { ...status, unitCount, atLimit };
 }
 
 export interface ApplianceLimitInfo {

@@ -88,9 +88,9 @@ export default function SubscriptionFormScreen() {
       />
       {selectedPlan ? (
         <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-          {selectedPlan.maxProperties != null
-            ? `Up to ${selectedPlan.maxProperties} properties.`
-            : 'Unlimited properties.'}
+          {selectedPlan.maxUnits != null
+            ? `Up to ${selectedPlan.maxUnits} units.`
+            : 'Unlimited units.'}
           {selectedPlan.maxAppliancesPerProperty != null
             ? ` Up to ${selectedPlan.maxAppliancesPerProperty} appliances per unit.`
             : ''}

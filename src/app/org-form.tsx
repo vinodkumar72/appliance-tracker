@@ -9,9 +9,16 @@ import { useTheme } from '@/hooks/use-theme';
 import { sendInvite } from '@/lib/invite';
 import { can } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 
 export default function OrgFormScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, requestId, company, owner, email } = useLocalSearchParams<{
+    id?: string;
+    requestId?: string;
+    company?: string;
+    owner?: string;
+    email?: string;
+  }>();
   const theme = useTheme();
   const router = useRouter();
   const organizations = useAppStore((s) => s.organizations);
@@ -23,11 +30,11 @@ export default function OrgFormScreen() {
 
   const existing = id ? organizations.find((o) => o.id === id) : undefined;
 
-  const [name, setName] = useState(existing?.name ?? '');
+  const [name, setName] = useState(existing?.name ?? company ?? '');
   const [address, setAddress] = useState(existing?.address ?? '');
   const [orgPhone, setOrgPhone] = useState(existing?.phone ?? '');
-  const [ownerName, setOwnerName] = useState('');
-  const [ownerEmail, setOwnerEmail] = useState('');
+  const [ownerName, setOwnerName] = useState(owner ?? '');
+  const [ownerEmail, setOwnerEmail] = useState(email ?? '');
   const [errors, setErrors] = useState<{ name?: string; ownerName?: string; ownerEmail?: string }>(
     {},
   );
@@ -86,6 +93,13 @@ export default function OrgFormScreen() {
     const orgId = createOrganization(name, ownerName, ownerEmail);
     if (selectedPlan) {
       setSubscription(orgId, selectedPlan.id, effectiveMode);
+    }
+    if (requestId) {
+      // Came from the onboarding-requests inbox — mark the request handled.
+      void supabase
+        .from('onboarding_requests')
+        .update({ status: 'onboarded' })
+        .eq('id', requestId);
     }
     const planNote = selectedPlan
       ? ` Plan: ${selectedPlan.name}${
@@ -184,9 +198,9 @@ export default function OrgFormScreen() {
               />
               {selectedPlan ? (
                 <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                  {selectedPlan.maxProperties != null
-                    ? `Up to ${selectedPlan.maxProperties} properties.`
-                    : 'Unlimited properties.'}
+                  {selectedPlan.maxUnits != null
+                    ? `Up to ${selectedPlan.maxUnits} units.`
+                    : 'Unlimited units.'}
                   {selectedPlan.maxAppliancesPerProperty != null
                     ? ` Up to ${selectedPlan.maxAppliancesPerProperty} appliances per unit.`
                     : ''}

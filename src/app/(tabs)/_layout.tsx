@@ -10,6 +10,13 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: theme.tint,
         tabBarInactiveTintColor: theme.textSecondary,
+        tabBarStyle: {
+          backgroundColor: theme.backgroundElement,
+          borderTopColor: theme.border,
+        },
+        tabBarLabelStyle: { fontWeight: '600' },
+        headerShadowVisible: false,
+        headerTitleStyle: { fontWeight: '800', fontSize: 22 },
       }}>
       <Tabs.Screen
         name="index"

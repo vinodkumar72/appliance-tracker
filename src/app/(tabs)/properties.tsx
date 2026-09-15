@@ -44,10 +44,10 @@ export default function PropertiesScreen() {
             gap: 4,
           }}>
           <Text style={{ color: theme.warning, fontSize: 14, fontWeight: '600' }}>
-            Plan limit reached ({planInfo.propertyCount}/{planInfo.effectiveMax} properties)
+            Plan limit reached ({planInfo.unitCount}/{planInfo.effectiveMax} units)
           </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-            The {planInfo.plan?.name ?? 'current'} plan allows {planInfo.effectiveMax} properties.
+            The {planInfo.plan?.name ?? 'current'} plan covers {planInfo.effectiveMax} units.
             Upgrade the plan to add more.
           </Text>
         </View>

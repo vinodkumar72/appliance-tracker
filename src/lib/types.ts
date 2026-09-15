@@ -24,11 +24,25 @@ export interface DeletionRecord {
 export interface Plan extends Syncable {
   id: string;
   name: string;
-  /** 0 = free tier. */
+  /** Shown next to the name on the public pricing table (e.g. "🚀"). */
+  emoji?: string;
+  /** Price per year when billed annually; 0 = free tier. */
   yearlyPrice: number;
-  /** Property limit; undefined = unlimited. */
-  maxProperties?: number;
-  /** Appliance limit per property; undefined = unlimited. */
+  /** Price per month when billed monthly; undefined = annual billing only. */
+  monthlyPrice?: number;
+  /** Highlighted as "Most popular" on the public pricing table. */
+  mostPopular?: boolean;
+  /**
+   * Unit limit across the whole portfolio; undefined = unlimited. A property
+   * with no units counts as 1 unit; a 20-unit condo counts as 20.
+   */
+  maxUnits?: number;
+  /**
+   * For unlimited tiers: the intended starting size (e.g. "Unlimited, starts
+   * at 100 units"). Display + per-unit price math only, not enforced.
+   */
+  minUnits?: number;
+  /** Appliance limit per unit (building/common area counts as its own unit); undefined = unlimited. */
   maxAppliancesPerProperty?: number;
   /** Trial length when a company starts on this plan; 0 = no trial. */
   trialDays: number;
