@@ -121,6 +121,11 @@ export function PlanTable() {
                         (Most Popular)
                       </Text>
                     ) : null}
+                    {plan.trial_days > 0 ? (
+                      <Text style={{ color: theme.success, fontSize: 12, fontWeight: '600' }}>
+                        {plan.trial_days}-day free trial
+                      </Text>
+                    ) : null}
                   </View>
 
                   <Text style={[styles.cell, { width: col[1], color: theme.text }]}>
@@ -177,10 +182,7 @@ export function PlanTable() {
       <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
         A home with no units counts as 1 unit; a 20-unit building counts as 20.
         {plans.some((p) => p.trial_days > 0)
-          ? ` Paid tiers include a free trial (${plans
-              .filter((p) => p.trial_days > 0)
-              .map((p) => `${p.name}: ${p.trial_days} days`)
-              .join(', ')}).`
+          ? ' Free trials start when you subscribe — cancel before the trial ends and you pay nothing.'
           : ''}
       </Text>
     </>

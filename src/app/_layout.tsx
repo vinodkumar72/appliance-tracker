@@ -52,6 +52,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="plan-form" options={{ title: 'Plan', presentation: 'modal' }} />
         <Stack.Screen name="subscription-form" options={{ title: 'Subscription', presentation: 'modal' }} />
+        <Stack.Screen name="upgrade" options={{ title: 'Upgrade plan', presentation: 'modal' }} />
         <Stack.Screen name="member-form" options={{ title: 'Member', presentation: 'modal' }} />
       </Stack>
       </AuthGate>

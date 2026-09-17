@@ -1,13 +1,13 @@
 import { Stack, useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 
+import { PlanTable } from '@/components/plan-table';
 import { PageHero, PublicPage } from '@/components/public-page';
-import { StripePricingTable } from '@/components/stripe-pricing-table';
 import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-/** Public page: subscribe via the Stripe-hosted pricing table. */
+/** Public page: the live plan catalog (mirrored from Stripe), readable without an account. */
 export default function PricingScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -21,11 +21,11 @@ export default function PricingScreen() {
         subtitle="Pay for the units you manage — every feature is included in every tier."
       />
 
-      <StripePricingTable />
+      <PlanTable />
 
       <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-        A home with no units counts as 1 unit; a 20-unit building counts as 20. After subscribing,
-        we'll onboard your company and send your sign-in invitation.
+        Ready to start? Request an invite and we'll onboard your company and send your sign-in
+        details.
       </Text>
 
       <View style={{ gap: Spacing.two, marginTop: Spacing.two }}>

@@ -112,9 +112,29 @@ export default function PlanFormScreen() {
     router.back();
   };
 
+  // Plans mirrored from Stripe (by the stripe-catalog-sync function) carry
+  // the Stripe product id; local edits get overwritten by the next sync.
+  const stripeManaged = !!existing?.id.startsWith('prod_');
+
   return (
     <Screen>
       <Stack.Screen options={{ title: existing ? 'Edit plan' : 'New plan' }} />
+      {stripeManaged ? (
+        <View
+          style={{
+            backgroundColor: theme.tintSoft,
+            borderColor: theme.tint,
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 12,
+          }}>
+          <Text style={{ color: theme.text, fontSize: 13, lineHeight: 19 }}>
+            ⚠️ This plan is mirrored from Stripe. Edit the product (prices in its Prices, limits in
+            its Metadata) in the Stripe dashboard instead — changes made here will be overwritten by
+            the next Stripe sync.
+          </Text>
+        </View>
+      ) : null}
       <FormField
         label="Plan name *"
         value={name}

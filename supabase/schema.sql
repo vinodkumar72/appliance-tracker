@@ -116,6 +116,8 @@ create table public.plans (
   max_properties integer,                 -- legacy pre-unit-pricing limit, no longer used
   max_appliances_per_property integer,    -- appliance limit per unit; null = unlimited
   trial_days integer not null default 0,
+  stripe_monthly_price_id text,           -- Stripe price ids, filled by stripe-catalog-sync
+  stripe_yearly_price_id text,
   created_at text,
   updated_at timestamptz not null default now()
 );

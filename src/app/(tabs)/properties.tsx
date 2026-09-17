@@ -50,6 +50,9 @@ export default function PropertiesScreen() {
             The {planInfo.plan?.name ?? 'current'} plan covers {planInfo.effectiveMax} units.
             Upgrade the plan to add more.
           </Text>
+          <View style={{ flexDirection: 'row', marginTop: 4 }}>
+            <Button title="Upgrade plan" compact onPress={() => router.push('/upgrade')} />
+          </View>
         </View>
       ) : null}
       {canEdit && !atLimit ? (

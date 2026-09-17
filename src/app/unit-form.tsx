@@ -55,8 +55,9 @@ export default function UnitFormScreen() {
         <EmptyState
           emoji="📈"
           title="Plan limit reached"
-          message={`The ${planInfo.plan?.name ?? 'current'} plan covers ${planInfo.effectiveMax} units (${planInfo.unitCount} in use). Upgrade the company's plan to add more.`}
-        />
+          message={`The ${planInfo.plan?.name ?? 'current'} plan covers ${planInfo.effectiveMax} units (${planInfo.unitCount} in use). Upgrade the company's plan to add more.`}>
+          <Button title="Upgrade plan" onPress={() => router.replace('/upgrade')} />
+        </EmptyState>
       </Screen>
     );
   }

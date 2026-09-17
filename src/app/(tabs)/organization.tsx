@@ -324,9 +324,17 @@ export default function OrganizationScreen() {
                 ? ' The paid plan lapsed, so free-tier limits apply — existing data is untouched.'
                 : ''}
             </Text>
-            {!isPlatformAdmin ? (
+            {!isPlatformAdmin && (role === 'owner' || role === 'admin') ? (
+              <View style={{ flexDirection: 'row' }}>
+                <Button
+                  title="Upgrade plan"
+                  compact
+                  onPress={() => router.push('/upgrade')}
+                />
+              </View>
+            ) : !isPlatformAdmin ? (
               <Text style={{ color: theme.textSecondary, fontSize: 12, fontStyle: 'italic' }}>
-                Contact your platform provider to change plans.
+                Ask your company owner to upgrade the plan.
               </Text>
             ) : null}
           </Card>
