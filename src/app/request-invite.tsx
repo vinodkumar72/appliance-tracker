@@ -1,12 +1,22 @@
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PageHero, PublicPage } from '@/components/public-page';
-import { Button, Card, FormField } from '@/components/ui';
+import { Button, Card, ChipPicker, FormField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
+
+interface PublicPlanOption {
+  id: string;
+  name: string;
+  emoji: string | null;
+  yearly_price: number;
+  max_units: number | null;
+}
+
+const NOT_SURE = 'not-sure';
 
 /** Public page: prospective customers ask to be onboarded. No account needed. */
 export default function RequestInviteScreen() {
@@ -17,9 +27,19 @@ export default function RequestInviteScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
+  const [planId, setPlanId] = useState(NOT_SURE);
+  const [plans, setPlans] = useState<PublicPlanOption[]>([]);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from('plans')
+      .select('id,name,emoji,yearly_price,max_units')
+      .order('yearly_price', { ascending: true })
+      .then(({ data }) => setPlans((data as PublicPlanOption[]) ?? []));
+  }, []);
 
   const submit = async () => {
     if (!company.trim() || !contactName.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) {
@@ -33,6 +53,7 @@ export default function RequestInviteScreen() {
       email: email.trim(),
       phone: phone.trim() || null,
       message: message.trim() || null,
+      plan_id: planId === NOT_SURE ? null : planId,
     });
     setBusy(false);
     if (error) {
@@ -91,6 +112,22 @@ export default function RequestInviteScreen() {
         placeholder="Optional"
         keyboardType="phone-pad"
       />
+      {plans.length > 0 ? (
+        <ChipPicker
+          label="Which plan are you interested in?"
+          value={planId}
+          onChange={setPlanId}
+          options={[
+            { value: NOT_SURE, label: 'Not sure yet' },
+            ...plans.map((p) => ({
+              value: p.id,
+              label: `${p.emoji ? `${p.emoji} ` : ''}${p.name}${
+                p.max_units != null ? ` — ${p.max_units} units` : ''
+              }`,
+            })),
+          ]}
+        />
+      ) : null}
       <FormField
         label="Anything we should know?"
         value={message}

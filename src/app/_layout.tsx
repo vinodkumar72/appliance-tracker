@@ -45,6 +45,7 @@ export default function RootLayout() {
         <Stack.Screen name="about" options={{ title: 'About', headerShown: false }} />
         <Stack.Screen name="sign-in" options={{ title: 'Sign in', headerShown: false }} />
         <Stack.Screen name="how-it-works" options={{ title: 'How it works', headerShown: false }} />
+        <Stack.Screen name="contact" options={{ title: 'Contact us', headerShown: false }} />
         <Stack.Screen name="pricing" options={{ title: 'Pricing', headerShown: false }} />
         <Stack.Screen
           name="request-invite"

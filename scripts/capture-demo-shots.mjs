@@ -7,7 +7,9 @@ import { mkdirSync } from 'node:fs';
 
 const BASE = 'http://localhost:8081';
 const OUT = 'assets/demo';
-const SIZE = { width: 1280, height: 800 };
+// The app's content column caps at 800px (MaxContentWidth) — capture just a
+// bit wider so the UI fills the frame and text stays large on the demo page.
+const SIZE = { width: 880, height: 660 };
 mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch();
@@ -23,7 +25,13 @@ const click = async (t, ms = 1200) => {
   await visibleText(t).first().click();
   await pause(ms);
 };
-const TAB_X = { Dashboard: 160, Properties: 480, Tasks: 800, Company: 1120 };
+// Tab centers sit at 1/8, 3/8, 5/8, 7/8 of the viewport width.
+const TAB_X = {
+  Dashboard: SIZE.width * 0.125,
+  Properties: SIZE.width * 0.375,
+  Tasks: SIZE.width * 0.625,
+  Company: SIZE.width * 0.875,
+};
 const tab = async (name, ms = 1500) => {
   await page.mouse.click(TAB_X[name], SIZE.height - 30);
   await pause(ms);

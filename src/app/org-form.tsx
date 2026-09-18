@@ -12,12 +12,13 @@ import { useAppStore, useSessionInfo } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 
 export default function OrgFormScreen() {
-  const { id, requestId, company, owner, email } = useLocalSearchParams<{
+  const { id, requestId, company, owner, email, planId: requestedPlanId } = useLocalSearchParams<{
     id?: string;
     requestId?: string;
     company?: string;
     owner?: string;
     email?: string;
+    planId?: string;
   }>();
   const theme = useTheme();
   const router = useRouter();
@@ -40,7 +41,14 @@ export default function OrgFormScreen() {
   );
   const [inviting, setInviting] = useState(false);
   const [doneMessage, setDoneMessage] = useState('');
-  const [planId, setPlanId] = useState(findFreePlan(plans)?.id ?? plans[0]?.id ?? '');
+  // The plan the prospect asked for on the request-invite form wins as the
+  // default; otherwise start them on the free tier.
+  const [planId, setPlanId] = useState(
+    (requestedPlanId && plans.some((p) => p.id === requestedPlanId) ? requestedPlanId : null) ??
+      findFreePlan(plans)?.id ??
+      plans[0]?.id ??
+      '',
+  );
   const [planMode, setPlanMode] = useState<'trial' | 'active'>('trial');
 
   const selectedPlan = plans.find((p) => p.id === planId);

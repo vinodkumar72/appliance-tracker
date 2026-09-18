@@ -89,16 +89,18 @@ Deno.serve(async (req) => {
     }
 
     // Trial: the plan's trial_days apply automatically (card collected now,
-    // first charge when the trial ends) — but only for companies not already
-    // on an active paid plan, so switching tiers doesn't restart a trial.
+    // first charge when the trial ends) — but one trial per company, EVER.
+    // Any paid-plan history (an active subscription, a running trial, or an
+    // expired one — including trials assigned at onboarding) means no new
+    // trial: upgrading after a lapsed trial starts billing immediately.
     let trialDays = Number(plan.trial_days ?? 0);
     if (trialDays > 0) {
       const { data: currentSub } = await admin
         .from("subscriptions")
-        .select("status,plan_id")
+        .select("plan_id")
         .eq("org_id", orgId)
         .maybeSingle();
-      if (currentSub?.status === "active") {
+      if (currentSub) {
         const { data: currentPlan } = await admin
           .from("plans")
           .select("yearly_price")

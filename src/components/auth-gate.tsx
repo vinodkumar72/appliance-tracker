@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { usePathname } from 'expo-router';
 import { ReactNode, useEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { Landing } from '@/components/landing';
 import { SignInForm } from '@/components/sign-in-form';
@@ -230,10 +230,13 @@ export function AuthGate({ children }: { children: ReactNode }) {
         overlay = (
           <Screen>
             <View style={styles.header}>
-              <Text style={styles.logo}>🏠</Text>
-              <Text style={[styles.title, { color: theme.text }]}>Appliance Tracker</Text>
+              <Image
+                source={require('../../assets/images/logo-mark.png')}
+                style={{ width: 72, height: 72, borderRadius: 17 }}
+              />
+              <Text style={[styles.title, { color: theme.text }]}>PropsLane</Text>
               <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-                Sign in to your company account.
+                Appliance & maintenance tracking. Sign in to your company account.
               </Text>
             </View>
             <SignInForm variant="native" />
@@ -241,7 +244,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
         );
       } else {
         // Web: public pages are reachable without an account.
-        const PUBLIC_PATHS = ['/about', '/pricing', '/request-invite', '/sign-in', '/how-it-works'];
+        const PUBLIC_PATHS = [
+          '/about',
+          '/pricing',
+          '/request-invite',
+          '/sign-in',
+          '/how-it-works',
+          '/contact',
+        ];
         if (!PUBLIC_PATHS.includes(pathname)) {
           // Signed-out web visitors get the marketing homepage.
           overlay = <Landing />;

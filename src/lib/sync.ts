@@ -380,6 +380,20 @@ export interface SyncResult {
   error?: string;
 }
 
+/** Plain-English table names for error messages. */
+const FRIENDLY_TABLE_NAMES: Record<string, string> = {
+  app_users: 'user',
+  organizations: 'company',
+  memberships: 'membership',
+  properties: 'property',
+  units: 'unit',
+  appliances: 'appliance',
+  maintenance_logs: 'log entry',
+  schedules: 'maintenance schedule',
+  plans: 'plan',
+  subscriptions: 'subscription',
+};
+
 let inFlight: Promise<SyncResult> | null = null;
 
 /**
@@ -402,6 +416,20 @@ async function runSync(): Promise<SyncResult> {
     if (!sessionData.session) {
       return { ok: false, pushed: 0, pulled: 0, error: 'Sign in to sync.' };
     }
+
+    // Identity guard: this device's data belongs to whichever login last synced
+    // here. A different login must start from a clean slate — pushing another
+    // account's leftovers is both a privacy problem and guaranteed RLS
+    // rejections. (Null = fresh device or pre-sign-in local work, which the
+    // first login legitimately adopts.)
+    const authUserId = sessionData.session.user.id;
+    if (useAppStore.getState().lastAuthUserId !== authUserId) {
+      if (useAppStore.getState().lastAuthUserId !== null) {
+        useAppStore.getState().resetAll();
+      }
+      useAppStore.setState({ lastAuthUserId: authUserId });
+    }
+
     const linkError = await linkAuthUser();
     if (linkError) return { ok: false, pushed: 0, pulled: 0, error: linkError };
 
@@ -435,6 +463,19 @@ async function runSync(): Promise<SyncResult> {
         .from(table)
         .upsert(rows, { onConflict: 'id', ignoreDuplicates });
       if (error) {
+        // Permission rejections get a message with the remedy in it instead of
+        // raw policy-speak.
+        if (/row-level security/i.test(error.message)) {
+          const what = FRIENDLY_TABLE_NAMES[table] ?? table;
+          const first = rows.find((r) => typeof r.name === 'string' && r.name);
+          throw new Error(
+            `Couldn't upload ${rows.length === 1 ? `a ${what}` : `${rows.length} ${what} records`}` +
+              `${first ? ` ("${first.name}")` : ''} — your account doesn't have permission for ` +
+              `${rows.length === 1 ? 'it' : 'them'}. This usually means leftover data from ` +
+              `another account or an old test on this device: use "Reset all data" on the ` +
+              `Company tab, then sign in again. (${table}: ${error.message})`,
+          );
+        }
         throw new Error(
           `${table}: ${error.message}${error.details ? ` — ${error.details}` : ''}`,
         );

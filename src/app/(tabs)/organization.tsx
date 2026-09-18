@@ -1,7 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Badge, Button, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { describePlanStatus, getPlanStatus, useOrgPlan } from '@/lib/billing';
 import { confirmDestructive } from '@/lib/confirm';
 import { can, ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/permissions';
+import { signOutClean } from '@/lib/sign-out';
 import { useAppStore, usePendingChanges, useSessionInfo } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 
@@ -56,9 +57,19 @@ export default function OrganizationScreen() {
     email: string;
     phone: string | null;
     message: string | null;
+    plan_id: string | null;
     created_at: string;
   }
   const [requests, setRequests] = useState<OnboardingRequest[]>([]);
+  interface ContactMessage {
+    id: string;
+    name: string;
+    email: string;
+    company: string | null;
+    message: string;
+    created_at: string;
+  }
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const loadRequests = async () => {
     if (!isPlatformAdmin || !authSession) return;
     const { data } = await supabase
@@ -67,9 +78,18 @@ export default function OrganizationScreen() {
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
     setRequests((data as OnboardingRequest[]) ?? []);
+    const { data: messages } = await supabase
+      .from('contact_messages')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    setContactMessages((messages as ContactMessage[]) ?? []);
   };
   useEffect(() => {
     void loadRequests();
+    // New requests/messages appear without a manual page reload.
+    const interval = setInterval(() => void loadRequests(), 60_000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformAdmin, !!authSession]);
 
@@ -78,15 +98,156 @@ export default function OrganizationScreen() {
     void loadRequests();
   };
 
+  const dismissMessage = async (messageId: string) => {
+    await supabase.from('contact_messages').update({ status: 'dismissed' }).eq('id', messageId);
+    void loadRequests();
+  };
+
   const signOut = () =>
     confirmDestructive(
       'Sign out?',
-      'Unsynced changes stay on this device and upload the next time you sign in.',
-      async () => {
-        await supabase.auth.signOut();
-        setDemoMode(false);
-      },
+      'Anything not yet synced is uploaded first; once everything is safe in the cloud, this device is cleared.',
+      () => void signOutClean(),
     );
+
+  // Platform-owner sections, rendered BOTH in the normal view and in the
+  // "no company yet" state — the owner needs the request inbox and the plan
+  // catalog precisely when there are no companies to select.
+  const requestsSection =
+    isPlatformAdmin && requests.length > 0 ? (
+      <>
+        <SectionHeader title={`Onboarding requests (${requests.length})`} />
+        {requests.map((request) => (
+          <Card key={request.id}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
+              {request.company_name}
+            </Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+              {request.contact_name} · {request.email}
+              {request.phone ? ` · ${request.phone}` : ''} ·{' '}
+              {new Date(request.created_at).toLocaleDateString()}
+            </Text>
+            {request.plan_id ? (
+              <View style={{ flexDirection: 'row' }}>
+                <Badge
+                  label={`Interested in: ${
+                    plans.find((p) => p.id === request.plan_id)?.name ?? request.plan_id
+                  }`}
+                  tone="tint"
+                />
+              </View>
+            ) : null}
+            {request.message ? (
+              <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{request.message}</Text>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: 4 }}>
+              <Button
+                title="Onboard"
+                compact
+                onPress={() =>
+                  router.push(
+                    `/org-form?requestId=${request.id}&company=${encodeURIComponent(request.company_name)}&owner=${encodeURIComponent(request.contact_name)}&email=${encodeURIComponent(request.email)}${request.plan_id ? `&planId=${encodeURIComponent(request.plan_id)}` : ''}`,
+                  )
+                }
+              />
+              <Button
+                title="Dismiss"
+                variant="secondary"
+                compact
+                onPress={() => void dismissRequest(request.id)}
+              />
+            </View>
+          </Card>
+        ))}
+      </>
+    ) : null;
+
+  const messagesSection =
+    isPlatformAdmin && contactMessages.length > 0 ? (
+      <>
+        <SectionHeader title={`Messages (${contactMessages.length})`} />
+        {contactMessages.map((msg) => (
+          <Card key={msg.id}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>{msg.name}</Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+              {msg.email}
+              {msg.company ? ` · ${msg.company}` : ''} ·{' '}
+              {new Date(msg.created_at).toLocaleDateString()}
+            </Text>
+            <Text style={{ color: theme.text, fontSize: 14, lineHeight: 21 }}>{msg.message}</Text>
+            <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: 4 }}>
+              <Button
+                title="Reply by email"
+                compact
+                onPress={() => void Linking.openURL(`mailto:${msg.email}`)}
+              />
+              <Button
+                title="Dismiss"
+                variant="secondary"
+                compact
+                onPress={() => void dismissMessage(msg.id)}
+              />
+            </View>
+          </Card>
+        ))}
+      </>
+    ) : null;
+
+  const plansSection = isPlatformAdmin ? (
+    <>
+      <SectionHeader
+        title={`Plans (${plans.length})`}
+        right={<Button title="+ New plan" compact onPress={() => router.push('/plan-form')} />}
+      />
+      {plans.length === 0 ? (
+        <Card>
+          <Text style={{ color: theme.textSecondary }}>
+            No pricing tiers yet. Plans mirror your Stripe products — check the Stripe catalog
+            sync, or create one here manually.
+          </Text>
+        </Card>
+      ) : (
+        // Cheapest first, by effective monthly cost (yearly-only plans use yearly/12).
+        [...plans]
+          .sort(
+            (a, b) =>
+              (a.monthlyPrice ?? a.yearlyPrice / 12) - (b.monthlyPrice ?? b.yearlyPrice / 12),
+          )
+          .map((plan) => {
+          const subscriberCount = subscriptions.filter((sub) => sub.planId === plan.id).length;
+          return (
+            <Pressable
+              key={plan.id}
+              onPress={() => router.push(`/plan-form?id=${plan.id}`)}
+              style={({ pressed }) => [
+                styles.orgRow,
+                {
+                  backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
+                  borderColor: 'transparent',
+                },
+              ]}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '700' }}>
+                  {plan.name}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                  {plan.yearlyPrice === 0 ? 'Free' : `$${plan.yearlyPrice}/year`}
+                  {plan.monthlyPrice != null ? ` (or $${plan.monthlyPrice}/mo)` : ''} ·{' '}
+                  {plan.maxUnits != null ? `up to ${plan.maxUnits} units` : 'unlimited units'}
+                  {plan.maxAppliancesPerProperty != null
+                    ? ` · ${plan.maxAppliancesPerProperty} appliances/unit`
+                    : ''}
+                  {plan.trialDays > 0 ? ` · ${plan.trialDays}-day trial` : ''} ·{' '}
+                  {subscriberCount} compan{subscriberCount === 1 ? 'y' : 'ies'}
+                </Text>
+              </View>
+              <Text style={{ color: theme.textSecondary, fontSize: 20 }}>›</Text>
+            </Pressable>
+          );
+        })
+      )}
+    </>
+  ) : null;
 
   if (!currentOrg) {
     return (
@@ -120,6 +281,9 @@ export default function OrganizationScreen() {
             </Text>
           </View>
         </EmptyState>
+        {requestsSection}
+        {messagesSection}
+        {plansSection}
       </Screen>
     );
   }
@@ -211,92 +375,12 @@ export default function OrganizationScreen() {
       ) : null}
 
       {isPlatformAdmin && requests.length > 0 ? (
-        <>
-          <SectionHeader title={`Onboarding requests (${requests.length})`} />
-          {requests.map((request) => (
-            <Card key={request.id}>
-              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
-                {request.company_name}
-              </Text>
-              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                {request.contact_name} · {request.email}
-                {request.phone ? ` · ${request.phone}` : ''} ·{' '}
-                {new Date(request.created_at).toLocaleDateString()}
-              </Text>
-              {request.message ? (
-                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{request.message}</Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: 4 }}>
-                <Button
-                  title="Onboard"
-                  compact
-                  onPress={() =>
-                    router.push(
-                      `/org-form?requestId=${request.id}&company=${encodeURIComponent(request.company_name)}&owner=${encodeURIComponent(request.contact_name)}&email=${encodeURIComponent(request.email)}`,
-                    )
-                  }
-                />
-                <Button
-                  title="Dismiss"
-                  variant="secondary"
-                  compact
-                  onPress={() => void dismissRequest(request.id)}
-                />
-              </View>
-            </Card>
-          ))}
-        </>
+        requestsSection
       ) : null}
 
-      {isPlatformAdmin ? (
-        <>
-          <SectionHeader
-            title={`Plans (${plans.length})`}
-            right={<Button title="+ New plan" compact onPress={() => router.push('/plan-form')} />}
-          />
-          {plans.length === 0 ? (
-            <Card>
-              <Text style={{ color: theme.textSecondary }}>
-                No pricing tiers yet. Create a free tier (e.g. up to 5 properties) and paid tiers —
-                companies are limited by their plan.
-              </Text>
-            </Card>
-          ) : (
-            plans.map((plan) => {
-              const subscriberCount = subscriptions.filter((sub) => sub.planId === plan.id).length;
-              return (
-                <Pressable
-                  key={plan.id}
-                  onPress={() => router.push(`/plan-form?id=${plan.id}`)}
-                  style={({ pressed }) => [
-                    styles.orgRow,
-                    {
-                      backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
-                      borderColor: 'transparent',
-                    },
-                  ]}>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ color: theme.text, fontSize: 15, fontWeight: '700' }}>
-                      {plan.name}
-                    </Text>
-                    <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                      {plan.yearlyPrice === 0 ? 'Free' : `$${plan.yearlyPrice}/year`}
-                      {plan.monthlyPrice != null ? ` (or $${plan.monthlyPrice}/mo)` : ''} ·{' '}
-                      {plan.maxUnits != null ? `up to ${plan.maxUnits} units` : 'unlimited units'}
-                      {plan.maxAppliancesPerProperty != null
-                        ? ` · ${plan.maxAppliancesPerProperty} appliances/unit`
-                        : ''}
-                      {plan.trialDays > 0 ? ` · ${plan.trialDays}-day trial` : ''} ·{' '}
-                      {subscriberCount} compan{subscriberCount === 1 ? 'y' : 'ies'}
-                    </Text>
-                  </View>
-                  <Text style={{ color: theme.textSecondary, fontSize: 20 }}>›</Text>
-                </Pressable>
-              );
-            })
-          )}
-        </>
-      ) : null}
+      {messagesSection}
+
+      {plansSection}
 
       {currentOrgPlan && currentOrgPlan.status !== 'none' ? (
         <>

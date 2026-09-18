@@ -1,14 +1,30 @@
 import { Redirect, usePathname, useRouter } from 'expo-router';
 import { ReactNode } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+const logoMark = require('../../assets/images/logo-mark.png');
+
+/** The PropsLane mark + wordmark, used in the nav and footer. */
+export function BrandLockup({ size = 26, onPress }: { size?: number; onPress?: () => void }) {
+  const theme = useTheme();
+  return (
+    <Pressable onPress={onPress} style={styles.brandRow} disabled={!onPress}>
+      <Image source={logoMark} style={{ width: size, height: size, borderRadius: size * 0.23 }} />
+      <Text style={[styles.brand, { color: theme.text, fontSize: size * 0.65 + 0.5 }]}>
+        Props<Text style={{ color: theme.tint }}>Lane</Text>
+      </Text>
+    </Pressable>
+  );
+}
 
 const NAV_LINKS: { label: string; path: string }[] = [
   { label: 'About', path: '/about' },
   { label: 'How it works', path: '/how-it-works' },
   { label: 'Pricing', path: '/pricing' },
+  { label: 'Contact', path: '/contact' },
 ];
 
 /** Shared top navigation for the public site. Sign-in lives top right. */
@@ -19,9 +35,7 @@ export function PublicNav() {
 
   return (
     <View style={styles.nav}>
-      <Text style={[styles.brand, { color: theme.text }]} onPress={() => router.push('/')}>
-        🏠 Appliance Tracker
-      </Text>
+      <BrandLockup onPress={() => router.push('/')} />
       <View style={styles.navLinks}>
         {NAV_LINKS.map((link) => {
           const active = pathname === link.path;
@@ -56,12 +70,9 @@ export function PublicFooter() {
   const router = useRouter();
   return (
     <View style={[styles.footer, { borderTopColor: theme.border }]}>
-      <Text style={{ color: theme.text, fontSize: 14, fontWeight: '700' }}>
-        🏠 Appliance Tracker
-      </Text>
+      <BrandLockup size={20} />
       <Text style={{ color: theme.textSecondary, fontSize: 12, textAlign: 'center' }}>
-        Appliance maintenance, warranties, and repairs — for property managers and the investors
-        they serve.
+        Appliance & maintenance tracking for property managers — and the investors they serve.
       </Text>
       <View style={styles.footerLinks}>
         {[
@@ -170,10 +181,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.two,
   },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   brand: {
-    fontSize: 17,
     fontWeight: '800',
-    letterSpacing: -0.2,
+    letterSpacing: -0.4,
   },
   navLinks: {
     flexDirection: 'row',

@@ -6,6 +6,7 @@ import { Text, View } from 'react-native';
 import { Badge, Button, Card, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { signOutClean } from '@/lib/sign-out';
 import { useAppStore, usePendingChanges } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { syncNow } from '@/lib/sync';
@@ -93,8 +94,8 @@ export default function AccountScreen() {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setMessage('Signed out. The app keeps working offline; sign in again to sync.');
+    const result = await signOutClean();
+    if (result) setMessage(result);
   };
 
   return (

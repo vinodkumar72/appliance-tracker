@@ -42,6 +42,12 @@ interface AppState {
   deletions: DeletionRecord[];
   /** When this device last synced with the backend; null = never / no backend yet. */
   lastSyncAt: string | null;
+  /**
+   * Auth user (login) whose data this device holds. The sync engine refuses to
+   * push one account's leftovers as another's: a different login triggers a
+   * local reset first. Null = never synced (fresh device or local-only usage).
+   */
+  lastAuthUserId: string | null;
   /** Using the app without an account (local-only). Cleared on sign-out. */
   demoMode: boolean;
   hydrated: boolean;
@@ -130,6 +136,7 @@ export const useAppStore = create<AppState>()(
       subscriptions: [],
       deletions: [],
       lastSyncAt: null,
+      lastAuthUserId: null,
       demoMode: false,
       hydrated: false,
 
@@ -562,6 +569,7 @@ export const useAppStore = create<AppState>()(
           subscriptions: [],
           deletions: [],
           lastSyncAt: null,
+          lastAuthUserId: null,
         }),
     }),
     {
@@ -582,6 +590,7 @@ export const useAppStore = create<AppState>()(
         subscriptions: s.subscriptions,
         deletions: s.deletions,
         lastSyncAt: s.lastSyncAt,
+        lastAuthUserId: s.lastAuthUserId,
         demoMode: s.demoMode,
       }),
       migrate: (persisted: unknown, version: number) => {

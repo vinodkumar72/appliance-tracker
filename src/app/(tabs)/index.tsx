@@ -26,7 +26,7 @@ export default function DashboardScreen() {
       <Screen>
         <EmptyState
           emoji="🏠"
-          title="Welcome to Appliance Tracker"
+          title="Welcome to PropsLane"
           message="Track appliances across all your rental properties — repairs, warranties, and maintenance reminders, with your whole team.">
           <View style={styles.emptyButtons}>
             {users.length === 0 ? (

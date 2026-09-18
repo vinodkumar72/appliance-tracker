@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Appliance Tracker",
+    "name": "PropsLane",
     "slug": "appliance-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,13 +8,12 @@
     "scheme": "appliancetracker",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.suvanc.appliancetracker",
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#2158E0",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -30,17 +29,17 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#2158E0",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 96
         }
       ],
       "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Appliance Tracker uses the camera to scan appliance labels so records fill in automatically.",
-          "photosPermission": "Appliance Tracker uses your photo library so you can pick a photo of an appliance label to scan."
+          "cameraPermission": "PropsLane uses the camera to scan appliance labels so records fill in automatically.",
+          "photosPermission": "PropsLane uses your photo library so you can pick a photo of an appliance label to scan."
         }
       ]
     ],

@@ -1,5 +1,5 @@
 -- ============================================================
--- Appliance Tracker — Supabase schema
+-- PropsLane — Supabase schema
 -- Run this in the Supabase dashboard: SQL Editor → New query → paste → Run.
 -- Safe to re-run on a fresh project. Tables mirror src/lib/types.ts.
 -- ============================================================
@@ -432,6 +432,7 @@ create table public.onboarding_requests (
   email text not null,
   phone text,
   message text,
+  plan_id text,  -- plan the prospect is interested in (optional)
   status text not null default 'pending' check (status in ('pending','onboarded','dismissed')),
   created_at timestamptz not null default now()
 );
@@ -455,3 +456,23 @@ create policy requests_update on public.onboarding_requests for update
   using (public.is_platform_admin());
 create policy requests_delete on public.onboarding_requests for delete
   using (public.is_platform_admin());
+
+-- Public "Contact us" messages: anyone can send; only the platform owner reads.
+create table public.contact_messages (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  company text,
+  message text not null,
+  status text not null default 'pending' check (status in ('pending','dismissed')),
+  created_at timestamptz not null default now()
+);
+
+alter table public.contact_messages enable row level security;
+
+create policy contact_insert on public.contact_messages
+  for insert with check (true);
+create policy contact_select on public.contact_messages
+  for select using (is_platform_admin());
+create policy contact_update on public.contact_messages
+  for update using (is_platform_admin());
