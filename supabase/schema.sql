@@ -332,6 +332,14 @@ create policy users_update on public.app_users for update
     or public.is_platform_admin()
     or exists (select 1 from public.memberships m
                where m.user_id = public.app_users.id and public.can_manage_members(m.org_id))
+  )
+  -- No self-promotion: the admin flag may only be written by an existing
+  -- platform admin, or when none exists yet (the first claim). Mirrors the
+  -- INSERT rule (migration-014).
+  with check (
+    (not is_platform_admin)
+    or public.is_platform_admin()
+    or not public.platform_admin_exists()
   );
 
 -- organizations: members see theirs; only the platform owner creates/deletes.
@@ -367,8 +375,19 @@ create policy properties_select on public.properties for select
 create policy properties_insert on public.properties for insert
   with check (public.is_platform_admin()
               or (public.my_role(org_id) in ('owner','admin','manager') and public.has_full_org_access(org_id)));
+-- NOTE: the explicit WITH CHECK matters — the sync engine upserts, and
+-- Postgres evaluates the UPDATE policy's check against proposed rows even on
+-- the insert path. Without it, USING doubles as the check, and
+-- can_edit_property(id) is false for a row that doesn't exist yet — which
+-- rejected every new property upserted by a non-admin (migration-013).
 create policy properties_update on public.properties for update
-  using (public.can_edit_property(id));
+  using (public.can_edit_property(id))
+  with check (
+    public.is_platform_admin()
+    or (public.my_role(org_id) in ('owner','admin','manager')
+        and public.has_full_org_access(org_id))
+    or public.can_edit_property(id)
+  );
 create policy properties_delete on public.properties for delete
   using (public.can_edit_property(id));
 

@@ -50,6 +50,11 @@ interface AppState {
   lastAuthUserId: string | null;
   /** Using the app without an account (local-only). Cleared on sign-out. */
   demoMode: boolean;
+  /**
+   * The store holds "Load sample data" content. Sample data must never sync:
+   * signing in wipes it first (see runSync's identity guard).
+   */
+  sampleDataLoaded: boolean;
   hydrated: boolean;
 
   setDemoMode: (on: boolean) => void;
@@ -138,6 +143,7 @@ export const useAppStore = create<AppState>()(
       lastSyncAt: null,
       lastAuthUserId: null,
       demoMode: false,
+      sampleDataLoaded: false,
       hydrated: false,
 
       setDemoMode: (on) => set({ demoMode: on }),
@@ -553,7 +559,8 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      loadSampleData: () => set({ ...buildSeedData(), deletions: [], lastSyncAt: null }),
+      loadSampleData: () =>
+        set({ ...buildSeedData(), deletions: [], lastSyncAt: null, sampleDataLoaded: true }),
       resetAll: () =>
         set({
           organizations: [],
@@ -570,6 +577,7 @@ export const useAppStore = create<AppState>()(
           deletions: [],
           lastSyncAt: null,
           lastAuthUserId: null,
+          sampleDataLoaded: false,
         }),
     }),
     {
@@ -592,6 +600,7 @@ export const useAppStore = create<AppState>()(
         lastSyncAt: s.lastSyncAt,
         lastAuthUserId: s.lastAuthUserId,
         demoMode: s.demoMode,
+        sampleDataLoaded: s.sampleDataLoaded,
       }),
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Partial<AppState>;

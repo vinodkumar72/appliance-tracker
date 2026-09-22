@@ -2,20 +2,32 @@
 -- CLEAN SLATE: wipes all synced app data.
 -- Keeps: tables, policies, edge functions, and login accounts.
 --
--- Order matters for a true reset:
---   1. Sign out (or close) the app on EVERY device first — an open,
---      signed-in app auto-syncs and will repopulate the tables within
---      seconds of this script running.
---   2. Run this script.
---   3. On each device: Company tab → Reset all data (or just sign in
---      fresh — with both sides empty there is nothing stale to push).
---   4. The first account to sign in and sync claims platform ownership.
---      Recreate your plans afterwards — the plan catalog is data too.
+-- Every wiped record is TOMBSTONED first, so any device that still holds a
+-- local copy deletes it automatically on its next sync (no more devices
+-- re-uploading ghost data after a reset). Unsynced work on devices is
+-- discarded by that cleanup — the reset makes the server the truth.
+--
+-- Afterwards: sign in (first account to sync claims platform ownership) and
+-- re-run the Stripe catalog backfill to restore plans.
 -- ============================================================
+
+truncate table public.deletions;
+
+insert into public.deletions (entity, id)
+          select 'schedule', id from public.schedules
+union all select 'log', id from public.maintenance_logs
+union all select 'appliance', id from public.appliances
+union all select 'unit', id from public.units
+union all select 'property', id from public.properties
+union all select 'subscription', id from public.subscriptions
+union all select 'plan', id from public.plans
+union all select 'membership', id from public.memberships
+union all select 'organization', id from public.organizations
+union all select 'user', id from public.app_users;
 
 truncate table
   public.onboarding_requests,
-  public.deletions,
+  public.contact_messages,
   public.subscriptions,
   public.plans,
   public.schedules,

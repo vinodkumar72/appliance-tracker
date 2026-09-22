@@ -93,6 +93,22 @@ export default function OrganizationScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformAdmin, !!authSession]);
 
+  // "Claim platform ownership" must answer a GLOBAL question — a company
+  // owner's device only syncs their own company's users, so the platform
+  // admin is invisible locally. Ask the server; when signed out (local-only
+  // usage), fall back to showing the claim.
+  const [serverAdminExists, setServerAdminExists] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!authSession) {
+      setServerAdminExists(false); // local-only mode: claiming is legitimate
+      return;
+    }
+    supabase
+      .rpc('platform_admin_exists')
+      .then(({ data, error }) => setServerAdminExists(error ? null : !!data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!authSession, users.length]);
+
   const dismissRequest = async (requestId: string) => {
     await supabase.from('onboarding_requests').update({ status: 'dismissed' }).eq('id', requestId);
     void loadRequests();
@@ -481,7 +497,7 @@ export default function OrganizationScreen() {
             onPress={() => switchUser(platformAdmin.id)}
           />
         ) : null}
-        {!platformAdmin && currentUser ? (
+        {!platformAdmin && currentUser && serverAdminExists === false ? (
           <Button
             title="Claim platform ownership"
             variant="secondary"

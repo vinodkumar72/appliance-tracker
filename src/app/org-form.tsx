@@ -10,6 +10,7 @@ import { sendInvite } from '@/lib/invite';
 import { can } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { syncNow } from '@/lib/sync';
 
 export default function OrgFormScreen() {
   const { id, requestId, company, owner, email, planId: requestedPlanId } = useLocalSearchParams<{
@@ -102,13 +103,21 @@ export default function OrgFormScreen() {
     if (selectedPlan) {
       setSubscription(orgId, selectedPlan.id, effectiveMode);
     }
-    if (requestId) {
-      // Came from the onboarding-requests inbox — mark the request handled.
-      void supabase
-        .from('onboarding_requests')
-        .update({ status: 'onboarded' })
-        .eq('id', requestId);
-    }
+    // Mark the matching onboarding request handled — by id when onboarding
+    // from the inbox, otherwise by the owner's email (covers companies
+    // onboarded via "+ Onboard company" while their request sat pending).
+    const markRequest = requestId
+      ? supabase.from('onboarding_requests').update({ status: 'onboarded' }).eq('id', requestId)
+      : supabase
+          .from('onboarding_requests')
+          .update({ status: 'onboarded' })
+          .eq('email', ownerEmail.trim())
+          .eq('status', 'pending');
+    void markRequest.then(({ error }) => {
+      // Fire-and-forget, but never silently: a failure here is how requests
+      // get stuck in "pending" forever.
+      if (error) console.warn(`Could not mark onboarding request handled: ${error.message}`);
+    });
     const planNote = selectedPlan
       ? ` Plan: ${selectedPlan.name}${
           selectedPlan.yearlyPrice === 0
@@ -120,6 +129,21 @@ export default function OrgFormScreen() {
       : '';
     if (ownerEmail.trim()) {
       setInviting(true);
+      // The invitation must NOT go out before the company, its owner record,
+      // and the membership are safely on the server — otherwise the owner can
+      // sign in before their membership exists, their login binds to a fresh
+      // disconnected user record, and every sync of theirs fails with
+      // permission errors. Sync first; invite only on success.
+      const syncResult = await syncNow();
+      if (!syncResult.ok) {
+        setInviting(false);
+        setDoneMessage(
+          `${name.trim()} was created locally, but uploading it failed (${syncResult.error}). ` +
+            `The invitation was NOT sent — fix the sync (see Company tab), press Sync now, ` +
+            `then re-send the invite from the member list.`,
+        );
+        return;
+      }
       const inviteError = await sendInvite(ownerEmail, orgId);
       setInviting(false);
       setDoneMessage(

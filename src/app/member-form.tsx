@@ -9,6 +9,7 @@ import { confirmDestructive } from '@/lib/confirm';
 import { sendInvite } from '@/lib/invite';
 import { assignableRoles, can, ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
+import { syncNow } from '@/lib/sync';
 import type { Role } from '@/lib/types';
 
 type AccessScope = 'all' | 'selected';
@@ -110,6 +111,18 @@ export default function MemberFormScreen() {
 
     addMember(name, email, role, propertyIds, unitIds);
     setInviting(true);
+    // Upload the member + membership BEFORE inviting — if they sign in before
+    // their membership is on the server, their login binds to a disconnected
+    // user record and their syncs fail with permission errors.
+    const syncResult = await syncNow();
+    if (!syncResult.ok) {
+      setInviting(false);
+      setDoneMessage(
+        `${name.trim()} was added locally, but uploading failed (${syncResult.error}). ` +
+          `The invitation was NOT sent — fix the sync, press Sync now, then re-send the invite.`,
+      );
+      return;
+    }
     const inviteError = await sendInvite(email, currentOrg.id);
     setInviting(false);
     setDoneMessage(

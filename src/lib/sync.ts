@@ -59,13 +59,19 @@ const fromOrgRow = (r: Row): Organization => ({
   updatedAt: r.updated_at,
 });
 
+// An EMPTY scoping list must mean "unrestricted" (null), never "access to
+// zero properties" — an empty array would silently strip a member of all
+// edit rights (has_full_org_access fails server-side).
+const scopeList = (ids: string[] | null | undefined): string[] | null =>
+  ids && ids.length > 0 ? ids : null;
+
 const toMembershipRow = (m: Membership): Row => ({
   id: m.id,
   org_id: m.orgId,
   user_id: m.userId,
   role: m.role,
-  property_ids: m.propertyIds ?? null,
-  unit_ids: m.unitIds ?? null,
+  property_ids: scopeList(m.propertyIds),
+  unit_ids: scopeList(m.unitIds),
   updated_at: m.updatedAt ?? new Date(0).toISOString(),
 });
 const fromMembershipRow = (r: Row): Membership => ({
@@ -73,12 +79,12 @@ const fromMembershipRow = (r: Row): Membership => ({
   orgId: r.org_id,
   userId: r.user_id,
   role: r.role,
-  ...(r.property_ids ? { propertyIds: r.property_ids } : {}),
-  ...(r.unit_ids ? { unitIds: r.unit_ids } : {}),
+  ...(scopeList(r.property_ids) ? { propertyIds: r.property_ids } : {}),
+  ...(scopeList(r.unit_ids) ? { unitIds: r.unit_ids } : {}),
   updatedAt: r.updated_at,
 });
 
-const toPropertyRow = (p: Property): Row => ({
+export const toPropertyRow = (p: Property): Row => ({
   id: p.id,
   org_id: p.orgId,
   name: p.name,
@@ -417,11 +423,22 @@ async function runSync(): Promise<SyncResult> {
       return { ok: false, pushed: 0, pulled: 0, error: 'Sign in to sync.' };
     }
 
-    // Identity guard: this device's data belongs to whichever login last synced
-    // here. A different login must start from a clean slate — pushing another
-    // account's leftovers is both a privacy problem and guaranteed RLS
-    // rejections. (Null = fresh device or pre-sign-in local work, which the
-    // first login legitimately adopts.)
+    // Identity guard, part 1: demo/sample data must never sync. Signing in
+    // ends demo mode and discards the sample portfolio — otherwise the first
+    // sync tries to upload properties of a company the user isn't in.
+    {
+      const st = useAppStore.getState();
+      if (st.demoMode || st.sampleDataLoaded) {
+        st.resetAll();
+        useAppStore.setState({ demoMode: false });
+      }
+    }
+
+    // Identity guard, part 2: this device's data belongs to whichever login
+    // last synced here. A different login must start from a clean slate —
+    // pushing another account's leftovers is both a privacy problem and
+    // guaranteed RLS rejections. (Null = fresh device or pre-sign-in local
+    // work, which the first login legitimately adopts.)
     const authUserId = sessionData.session.user.id;
     if (useAppStore.getState().lastAuthUserId !== authUserId) {
       if (useAppStore.getState().lastAuthUserId !== null) {
@@ -432,6 +449,39 @@ async function runSync(): Promise<SyncResult> {
 
     const linkError = await linkAuthUser();
     if (linkError) return { ok: false, pushed: 0, pulled: 0, error: linkError };
+
+    // Fetch tombstones FIRST and prune local copies of records deleted on the
+    // server (including server-side resets). Doing this before the push stops
+    // a device from re-uploading ghost data — or dying with a permission
+    // error while trying to.
+    const { data: remoteDeletions, error: delError } = await supabase
+      .from('deletions')
+      .select('*');
+    if (delError) throw new Error(`deletions: ${delError.message}`);
+    const deletedIds = new Map<string, Set<string>>();
+    for (const d of remoteDeletions ?? []) {
+      if (!deletedIds.has(d.entity)) deletedIds.set(d.entity, new Set());
+      deletedIds.get(d.entity)!.add(d.id);
+    }
+    const prune = <T extends { id: string }>(rows: T[], entity: DeletionRecord['entity']): T[] => {
+      const gone = deletedIds.get(entity);
+      return gone ? rows.filter((r) => !gone.has(r.id)) : rows;
+    };
+    {
+      const st0 = useAppStore.getState();
+      useAppStore.setState({
+        users: prune(st0.users, 'user'),
+        organizations: prune(st0.organizations, 'organization'),
+        memberships: prune(st0.memberships, 'membership'),
+        properties: prune(st0.properties, 'property'),
+        units: prune(st0.units, 'unit'),
+        appliances: prune(st0.appliances, 'appliance'),
+        logs: prune(st0.logs, 'log'),
+        schedules: prune(st0.schedules, 'schedule'),
+        plans: prune(st0.plans, 'plan'),
+        subscriptions: prune(st0.subscriptions, 'subscription'),
+      });
+    }
 
     const syncStartedAt = nowISO();
     const s = useAppStore.getState();
@@ -457,30 +507,63 @@ async function runSync(): Promise<SyncResult> {
     }
 
     // 2) Push upserts in dependency order.
+    const rlsFriendly = (table: string, row: Row | undefined, message: string) => {
+      const what = FRIENDLY_TABLE_NAMES[table] ?? table;
+      const label = row && typeof row.name === 'string' && row.name ? ` ("${row.name}")` : '';
+      const orgRef = row?.org_id ?? row?.id ?? 'n/a';
+      return new Error(
+        `Couldn't upload a ${what}${label} — your account doesn't have permission for it. ` +
+          `This usually means leftover data from another account or an old test on this ` +
+          `device: use "Reset all data" on the Company tab, then sign in again. ` +
+          `(${table}: ${message}; record: ${row?.id ?? 'n/a'}; org: ${orgRef})`,
+      );
+    };
+
+    /**
+     * Push one row with layered fallbacks. Upsert is the fast path, but some
+     * policy configurations reject ON CONFLICT writes from non-admins even
+     * for brand-new rows (the UPDATE policy is checked against a row that
+     * doesn't exist yet). Plain INSERT → UPDATE-on-duplicate sidesteps that
+     * entirely: each path is checked only against its own policy.
+     * Returns null on success, else the error message.
+     */
+    const pushRow = async (
+      table: string,
+      row: Row,
+      ignoreDuplicates: boolean,
+    ): Promise<string | null> => {
+      const up = await supabase.from(table).upsert([row], { onConflict: 'id', ignoreDuplicates });
+      if (!up.error) return null;
+      if (!/row-level security/i.test(up.error.message)) return up.error.message;
+      const ins = await supabase.from(table).insert([row]);
+      if (!ins.error) return null;
+      if (ins.error.code === '23505' || /duplicate key/i.test(ins.error.message)) {
+        if (ignoreDuplicates) return null; // "insert if missing" semantics: row exists, done
+        const upd = await supabase.from(table).update(row).eq('id', String(row.id));
+        return upd.error ? upd.error.message : null;
+      }
+      return ins.error.message;
+    };
+
     const pushTable = async (table: string, rows: Row[], ignoreDuplicates = false) => {
       if (rows.length === 0) return;
       const { error } = await supabase
         .from(table)
         .upsert(rows, { onConflict: 'id', ignoreDuplicates });
-      if (error) {
-        // Permission rejections get a message with the remedy in it instead of
-        // raw policy-speak.
-        if (/row-level security/i.test(error.message)) {
-          const what = FRIENDLY_TABLE_NAMES[table] ?? table;
-          const first = rows.find((r) => typeof r.name === 'string' && r.name);
-          throw new Error(
-            `Couldn't upload ${rows.length === 1 ? `a ${what}` : `${rows.length} ${what} records`}` +
-              `${first ? ` ("${first.name}")` : ''} — your account doesn't have permission for ` +
-              `${rows.length === 1 ? 'it' : 'them'}. This usually means leftover data from ` +
-              `another account or an old test on this device: use "Reset all data" on the ` +
-              `Company tab, then sign in again. (${table}: ${error.message})`,
-          );
-        }
-        throw new Error(
-          `${table}: ${error.message}${error.details ? ` — ${error.details}` : ''}`,
-        );
+      if (!error) {
+        pushed += rows.length;
+        return;
       }
-      pushed += rows.length;
+      // Batch failed (all-or-nothing): go row by row with fallbacks, so good
+      // records still land and any error names the actual offender.
+      for (const row of rows) {
+        const msg = await pushRow(table, row, ignoreDuplicates);
+        if (msg) {
+          if (/row-level security/i.test(msg)) throw rlsFriendly(table, row, msg);
+          throw new Error(`${table}: ${msg}`);
+        }
+        pushed++;
+      }
     };
     // Other people's user rows can't be updated by us — insert-only for those.
     // Only the signed-in user's own row may carry the platform-admin flag;
@@ -537,16 +620,7 @@ async function runSync(): Promise<SyncResult> {
       pullTable('subscriptions', fromSubscriptionRow),
     ]);
 
-    const { data: remoteDeletions, error: delError } = await supabase
-      .from('deletions')
-      .select('*');
-    if (delError) throw new Error(`deletions: ${delError.message}`);
-    const deletedIds = new Map<string, Set<string>>();
-    for (const d of remoteDeletions ?? []) {
-      if (!deletedIds.has(d.entity)) deletedIds.set(d.entity, new Set());
-      deletedIds.get(d.entity)!.add(d.id);
-    }
-
+    // (deletedIds was fetched and applied before the push, above.)
     const merge = <T extends { id: string; updatedAt?: string }>(
       local: T[],
       remote: T[],

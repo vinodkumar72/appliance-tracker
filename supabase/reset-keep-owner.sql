@@ -5,15 +5,26 @@
 --     AND the login), so no re-claiming ownership
 -- Deletes every other login too, so test emails can be re-invited.
 --
--- Order matters:
---   1. Close / sign out the app on EVERY device first — an open app
---      auto-syncs and pushes its old data right back (the platform
---      owner's own device especially: admins pass every permission check).
---   2. Run this script in the SQL Editor.
---   3. On each device (including yours): Company tab -> Reset all data,
---      then sign in. The owner's flag and the plans are already on the
---      server, so everything just pulls back in.
+-- Every wiped record is TOMBSTONED first, so any device that still holds a
+-- local copy deletes it automatically on its next sync (no more devices
+-- re-uploading ghost data after a reset). Unsynced work on devices is
+-- discarded by that cleanup — the reset makes the server the truth.
 -- ============================================================
+
+delete from public.deletions;
+
+insert into public.deletions (entity, id)
+          select 'schedule', id from public.schedules
+union all select 'log', id from public.maintenance_logs
+union all select 'appliance', id from public.appliances
+union all select 'unit', id from public.units
+union all select 'property', id from public.properties
+union all select 'subscription', id from public.subscriptions
+union all select 'membership', id from public.memberships
+union all select 'organization', id from public.organizations
+union all select 'user', id from public.app_users
+          where not (is_platform_admin and auth_id is not null);
+-- (plans are kept, so no plan tombstones)
 
 delete from public.subscriptions;
 delete from public.schedules;
@@ -24,7 +35,7 @@ delete from public.properties;
 delete from public.memberships;
 delete from public.organizations;
 delete from public.onboarding_requests;
-delete from public.deletions;
+delete from public.contact_messages;
 
 -- Keep only the platform owner's profile row (linked + flagged).
 delete from public.app_users
