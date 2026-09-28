@@ -7,7 +7,7 @@ import { Badge, Button, Card, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { signOutClean } from '@/lib/sign-out';
-import { useAppStore, usePendingChanges } from '@/lib/store';
+import { useAppStore, usePendingChanges, useSessionInfo } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { syncNow, toPropertyRow } from '@/lib/sync';
 
@@ -15,6 +15,7 @@ export default function AccountScreen() {
   const theme = useTheme();
   const pendingChanges = usePendingChanges();
   const lastSyncAt = useAppStore((s) => s.lastSyncAt);
+  const { isPlatformAdmin } = useSessionInfo();
 
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState('');
@@ -230,11 +231,13 @@ export default function AccountScreen() {
             </Text>
           </Card>
           <Button title={busy ? 'Working…' : 'Sync now'} onPress={busy ? () => {} : runSync} />
-          <Button
-            title={busy ? 'Working…' : 'Run sync doctor'}
-            variant="secondary"
-            onPress={busy ? () => {} : runDoctor}
-          />
+          {isPlatformAdmin ? (
+            <Button
+              title={busy ? 'Working…' : 'Run sync doctor'}
+              variant="secondary"
+              onPress={busy ? () => {} : runDoctor}
+            />
+          ) : null}
           {doctorReport ? (
             <Card>
               <Text

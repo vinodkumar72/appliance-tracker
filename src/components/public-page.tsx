@@ -78,6 +78,7 @@ export function PublicFooter() {
         {[
           ...NAV_LINKS,
           { label: 'Request an invite', path: '/request-invite' },
+          { label: 'Privacy policy', path: '/privacy' },
           { label: 'Sign in', path: '/sign-in' },
         ].map((link) => (
           <Text

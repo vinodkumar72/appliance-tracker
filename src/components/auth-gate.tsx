@@ -251,6 +251,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
           '/sign-in',
           '/how-it-works',
           '/contact',
+          '/privacy',
         ];
         if (!PUBLIC_PATHS.includes(pathname)) {
           // Signed-out web visitors get the marketing homepage.
