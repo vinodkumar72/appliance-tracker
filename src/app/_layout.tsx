@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="unit/[id]" options={{ title: 'Unit' }} />
         <Stack.Screen name="property-form" options={{ title: 'Property', presentation: 'modal' }} />
         <Stack.Screen name="appliance-form" options={{ title: 'Appliance', presentation: 'modal' }} />
+        <Stack.Screen name="retire-appliance" options={{ title: 'Replace appliance', presentation: 'modal' }} />
         <Stack.Screen name="log-form" options={{ title: 'Log entry', presentation: 'modal' }} />
         <Stack.Screen name="schedule-form" options={{ title: 'Maintenance schedule', presentation: 'modal' }} />
         <Stack.Screen name="unit-form" options={{ title: 'Unit', presentation: 'modal' }} />

@@ -108,6 +108,15 @@ interface AppState {
   addAppliance: (a: Omit<Appliance, 'id' | 'createdAt'>, withDefaultSchedules: boolean) => string;
   updateAppliance: (id: string, patch: Partial<Appliance>) => void;
   deleteAppliance: (id: string) => void;
+  /**
+   * Retires an appliance (replaced/removed): history stays, schedules are
+   * deleted (so the dead machine stops generating tasks), record leaves the
+   * main lists and plan limits.
+   */
+  retireAppliance: (
+    id: string,
+    opts: { status: 'replaced' | 'removed'; retiredAt: string; reason?: string },
+  ) => void;
 
   addLog: (l: Omit<MaintenanceLog, 'id'>) => void;
   updateLog: (id: string, patch: Partial<MaintenanceLog>) => void;
@@ -491,6 +500,30 @@ export const useAppStore = create<AppState>()(
             a.id === id ? { ...a, ...patch, id, updatedAt: nowISO() } : a,
           ),
         })),
+      retireAppliance: (id, opts) =>
+        set((s) => {
+          const at = nowISO();
+          return {
+            appliances: s.appliances.map((a) =>
+              a.id === id
+                ? {
+                    ...a,
+                    status: opts.status,
+                    retiredAt: opts.retiredAt,
+                    retiredReason: opts.reason,
+                    updatedAt: at,
+                  }
+                : a,
+            ),
+            schedules: s.schedules.filter((sc) => sc.applianceId !== id),
+            deletions: [
+              ...s.deletions,
+              ...s.schedules
+                .filter((sc) => sc.applianceId === id)
+                .map((sc) => ({ entity: 'schedule' as const, id: sc.id, deletedAt: at })),
+            ],
+          };
+        }),
       deleteAppliance: (id) =>
         set((s) => {
           const at = nowISO();

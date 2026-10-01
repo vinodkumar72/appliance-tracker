@@ -151,11 +151,23 @@ export interface Unit extends OwnerContact, Syncable {
   createdAt: string;
 }
 
+/** Lifecycle of an appliance record. Undefined = 'active'. */
+export type ApplianceStatus = 'active' | 'replaced' | 'removed';
+
 export interface Appliance extends Syncable {
   id: string;
   propertyId: string;
   /** Unit the appliance lives in; undefined = building / common area. */
   unitId?: string;
+  /**
+   * Retired records ('replaced'/'removed') keep their full history but are
+   * hidden from main lists, excluded from plan limits, and have no schedules.
+   */
+  status?: ApplianceStatus;
+  retiredAt?: string; // YYYY-MM-DD
+  retiredReason?: string;
+  /** For 'replaced': the appliance that took this one's place. */
+  replacedBy?: string;
   name: string;
   type: ApplianceType;
   brand?: string;

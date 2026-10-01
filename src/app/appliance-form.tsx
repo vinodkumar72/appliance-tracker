@@ -29,10 +29,12 @@ interface LabelScanResult {
 }
 
 export default function ApplianceFormScreen() {
-  const { id, propertyId, unitId: unitIdParam } = useLocalSearchParams<{
+  const { id, propertyId, unitId: unitIdParam, replaces } = useLocalSearchParams<{
     id?: string;
     propertyId?: string;
     unitId?: string;
+    /** Id of the retired appliance this new one replaces (links old → new). */
+    replaces?: string;
   }>();
   const theme = useTheme();
   const router = useRouter();
@@ -273,7 +275,11 @@ export default function ApplianceFormScreen() {
     if (existing) {
       updateAppliance(existing.id, data);
     } else {
-      addAppliance(data, withDefaults);
+      const newId = addAppliance(data, withDefaults);
+      if (replaces) {
+        // Came from the Replace flow: point the retired record at its successor.
+        updateAppliance(replaces, { replacedBy: newId });
+      }
     }
     router.back();
   };

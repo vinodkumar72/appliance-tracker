@@ -42,6 +42,11 @@ export default function ApplianceDetailScreen() {
   const typeInfo = APPLIANCE_TYPES[appliance.type];
   const property = properties.find((p) => p.id === appliance.propertyId);
   const unit = appliance.unitId ? units.find((u) => u.id === appliance.unitId) : undefined;
+  const retired = (appliance.status ?? 'active') !== 'active';
+  const successor = appliance.replacedBy
+    ? appliances.find((a) => a.id === appliance.replacedBy)
+    : undefined;
+  const predecessor = appliances.find((a) => a.replacedBy === appliance.id);
   const applianceLogs = logs
     .filter((l) => l.applianceId === appliance.id)
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -61,6 +66,45 @@ export default function ApplianceDetailScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: appliance.name }} />
+
+      {retired ? (
+        <Card style={{ borderColor: theme.warning, borderWidth: 1 }}>
+          <View style={{ flexDirection: 'row' }}>
+            <Badge
+              label={`${appliance.status === 'replaced' ? 'Replaced' : 'Removed'}${
+                appliance.retiredAt ? ` ${formatDate(appliance.retiredAt)}` : ''
+              }${appliance.retiredReason ? ` — ${appliance.retiredReason}` : ''}`}
+              tone="warning"
+            />
+          </View>
+          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+            This record is retired — its history is preserved below.
+            {successor ? ' ' : ''}
+            {successor ? (
+              <Text
+                style={{ color: theme.tint, fontWeight: '600' }}
+                onPress={() => router.push(`/appliance/${successor.id}`)}>
+                See its replacement: {successor.name} →
+              </Text>
+            ) : null}
+          </Text>
+        </Card>
+      ) : null}
+
+      {predecessor ? (
+        <Card>
+          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+            Replaced{' '}
+            <Text
+              style={{ color: theme.tint, fontWeight: '600' }}
+              onPress={() => router.push(`/appliance/${predecessor.id}`)}>
+              {predecessor.name}
+            </Text>
+            {predecessor.retiredAt ? ` on ${formatDate(predecessor.retiredAt)}` : ''} — its full
+            history is one tap away.
+          </Text>
+        </Card>
+      ) : null}
 
       <Card>
         <View style={styles.headerRow}>
@@ -94,29 +138,45 @@ export default function ApplianceDetailScreen() {
           <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{appliance.notes}</Text>
         ) : null}
         {canEdit ? (
-          <View style={styles.actionRow}>
-            <Button
-              title="Edit"
-              variant="secondary"
-              compact
-              onPress={() => router.push(`/appliance-form?id=${appliance.id}`)}
-            />
-            <Button
-              title="Delete"
-              variant="danger"
-              compact
+          <>
+            <View style={styles.actionRow}>
+              <Button
+                title="Edit"
+                variant="secondary"
+                compact
+                onPress={() => router.push(`/appliance-form?id=${appliance.id}`)}
+              />
+              {!retired ? (
+                <>
+                  <Button
+                    title="Replace…"
+                    compact
+                    onPress={() => router.push(`/retire-appliance?id=${appliance.id}`)}
+                  />
+                  <Button
+                    title="Remove…"
+                    variant="secondary"
+                    compact
+                    onPress={() => router.push(`/retire-appliance?id=${appliance.id}&mode=removed`)}
+                  />
+                </>
+              ) : null}
+            </View>
+            <Text
+              style={{ color: theme.danger, fontSize: 12.5, fontWeight: '600' }}
               onPress={() =>
                 confirmDestructive(
-                  'Delete appliance?',
-                  `"${appliance.name}" and its logs and schedules will be removed.`,
+                  'Delete this record?',
+                  `Deleting erases "${appliance.name}" AND its entire history — use it only for records created by mistake. Replacing or removing an appliance should use the buttons above, which keep the history.`,
                   () => {
                     deleteAppliance(appliance.id);
                     router.back();
                   },
                 )
-              }
-            />
-          </View>
+              }>
+              Delete record (only for entries created by mistake)
+            </Text>
+          </>
         ) : null}
       </Card>
 
@@ -174,7 +234,7 @@ export default function ApplianceDetailScreen() {
       <SectionHeader
         title="Maintenance schedules"
         right={
-          canEdit ? (
+          canEdit && !retired ? (
             <Button
               title="+ Add"
               compact

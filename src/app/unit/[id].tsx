@@ -29,7 +29,12 @@ export default function UnitDetailScreen() {
   }
 
   const property = properties.find((p) => p.id === unit.propertyId);
-  const unitAppliances = appliances.filter((a) => a.unitId === unit.id);
+  const unitAppliances = appliances.filter(
+    (a) => a.unitId === unit.id && (a.status ?? 'active') === 'active',
+  );
+  const retiredAppliances = appliances
+    .filter((a) => a.unitId === unit.id && (a.status ?? 'active') !== 'active')
+    .sort((a, b) => (b.retiredAt ?? '').localeCompare(a.retiredAt ?? ''));
   const tasks = getSchedulesWithDue({ schedules, appliances, properties, units });
   const overdueByAppliance = (applianceId: string) =>
     tasks.filter((t) => t.applianceId === applianceId && t.daysUntilDue < 0).length;
@@ -105,6 +110,15 @@ export default function UnitDetailScreen() {
           <ApplianceRow key={a.id} appliance={a} overdueCount={overdueByAppliance(a.id)} />
         ))
       )}
+
+      {retiredAppliances.length > 0 ? (
+        <>
+          <SectionHeader title={`Replaced & removed (${retiredAppliances.length})`} />
+          {retiredAppliances.map((a) => (
+            <ApplianceRow key={a.id} appliance={a} overdueCount={0} />
+          ))}
+        </>
+      ) : null}
     </Screen>
   );
 }

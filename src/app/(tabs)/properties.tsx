@@ -59,7 +59,9 @@ export default function PropertiesScreen() {
         <Button title="+ Add property" onPress={() => router.push('/property-form')} />
       ) : null}
       {properties.map((p) => {
-        const applianceCount = appliances.filter((a) => a.propertyId === p.id).length;
+        const applianceCount = appliances.filter(
+          (a) => a.propertyId === p.id && (a.status ?? 'active') === 'active',
+        ).length;
         const overdueCount = tasks.filter((t) => t.propertyId === p.id && t.daysUntilDue < 0).length;
         return (
           <Pressable

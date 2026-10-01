@@ -168,10 +168,13 @@ export function useApplianceLimit(
   if (!property) return null;
   const status = getPlanStatus(plans, subscriptions, property.orgId);
   const bucket = opts?.unitId ?? null;
+  // Retired (replaced/removed) appliances don't count toward the limit —
+  // otherwise replacing an appliance at the cap would be impossible.
   const count = appliances.filter(
     (a) =>
       a.propertyId === propertyId &&
       (a.unitId ?? null) === bucket &&
+      (a.status ?? 'active') === 'active' &&
       a.id !== opts?.excludeApplianceId,
   ).length;
   const max = status.effectiveMaxAppliances;

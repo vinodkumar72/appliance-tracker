@@ -78,7 +78,10 @@ export default function DashboardScreen() {
       />
       <View style={styles.statRow}>
         <StatCard label="Properties" value={properties.length} />
-        <StatCard label="Appliances" value={appliances.length} />
+        <StatCard
+          label="Appliances"
+          value={appliances.filter((a) => (a.status ?? 'active') === 'active').length}
+        />
         <StatCard label="Overdue" value={overdue.length} tone={overdue.length ? 'danger' : undefined} />
         <StatCard label="Due in 30 days" value={dueSoon.length} tone={dueSoon.length ? 'warning' : undefined} />
       </View>

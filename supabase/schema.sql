@@ -68,6 +68,11 @@ create table public.appliances (
   id text primary key,
   property_id text not null references public.properties (id) on delete cascade,
   unit_id text references public.units (id) on delete set null,
+  -- lifecycle: retired records keep history but leave lists/limits (migration-015)
+  status text not null default 'active' check (status in ('active','replaced','removed')),
+  retired_at text,
+  retired_reason text,
+  replaced_by text,
   name text not null,
   type text not null check (type in ('refrigerator','hvac','water-heater','dishwasher','washer','dryer','oven-range','microwave','garbage-disposal','other')),
   brand text,

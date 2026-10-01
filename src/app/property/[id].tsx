@@ -32,7 +32,13 @@ export default function PropertyDetailScreen() {
   }
 
   const propertyUnits = units.filter((u) => u.propertyId === property.id);
-  const propertyAppliances = appliances.filter((a) => a.propertyId === property.id);
+  const propertyAppliances = appliances.filter(
+    (a) => a.propertyId === property.id && (a.status ?? 'active') === 'active',
+  );
+  // Replaced/removed appliances anywhere on the property (units included).
+  const retiredAppliances = appliances
+    .filter((a) => a.propertyId === property.id && (a.status ?? 'active') !== 'active')
+    .sort((a, b) => (b.retiredAt ?? '').localeCompare(a.retiredAt ?? ''));
   const hasUnits = propertyUnits.length > 0;
   const commonAppliances = hasUnits
     ? propertyAppliances.filter((a) => !a.unitId)
@@ -188,6 +194,15 @@ export default function PropertyDetailScreen() {
           <ApplianceRow key={a.id} appliance={a} overdueCount={overdueByAppliance(a.id)} />
         ))
       )}
+
+      {retiredAppliances.length > 0 ? (
+        <>
+          <SectionHeader title={`Replaced & removed (${retiredAppliances.length})`} />
+          {retiredAppliances.map((a) => (
+            <ApplianceRow key={a.id} appliance={a} overdueCount={0} />
+          ))}
+        </>
+      ) : null}
     </Screen>
   );
 }
