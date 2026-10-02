@@ -26,7 +26,10 @@ export default function PricingScreen() {
       <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
         Start on the free tier in minutes — no credit card required. Create an account, set up your
         company, and upgrade whenever you outgrow it. Prefer a guided start? Request an invite and
-        we'll set you up.
+        we'll set you up. Questions?{' '}
+        <Text style={{ color: theme.tint, fontWeight: '600' }} onPress={() => router.push('/faq' as never)}>
+          Read the FAQ.
+        </Text>
       </Text>
 
       <View style={{ gap: Spacing.two, marginTop: Spacing.two }}>

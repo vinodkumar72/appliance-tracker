@@ -82,6 +82,7 @@ export function PublicFooter() {
       <View style={styles.footerLinks}>
         {[
           ...NAV_LINKS,
+          { label: 'FAQ', path: '/faq' },
           { label: 'Request an invite', path: '/request-invite' },
           { label: 'Privacy policy', path: '/privacy' },
           { label: 'Sign in', path: '/sign-in' },
