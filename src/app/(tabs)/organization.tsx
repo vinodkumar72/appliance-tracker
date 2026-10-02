@@ -276,14 +276,16 @@ export default function OrganizationScreen() {
               ? 'Set up your operator account, then onboard property management companies onto the platform.'
               : isPlatformAdmin
                 ? 'Onboard your first company to get started.'
-                : 'Ask the platform owner to onboard your company.'
+                : 'Create your own company to try PropsLane — or, if your property management company already uses it, ask them for an email invitation.'
           }>
           <View style={styles.emptyButtons}>
             {users.length === 0 ? (
               <Button title="Set up platform" onPress={() => router.push('/platform-setup')} />
             ) : isPlatformAdmin ? (
               <Button title="Onboard a company" onPress={() => router.push('/org-form')} />
-            ) : null}
+            ) : (
+              <Button title="Create your company" onPress={() => router.push('/create-company')} />
+            )}
             <Button title="Load sample data" variant="secondary" onPress={loadSampleData} />
             <Button
               title="Account & sync"
@@ -351,6 +353,7 @@ export default function OrganizationScreen() {
               <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
                 {propertyCount} propert{propertyCount === 1 ? 'y' : 'ies'} · {memberCount} member
                 {memberCount === 1 ? '' : 's'}
+                {isPlatformAdmin && org.selfServed ? ' · self-served signup' : ''}
               </Text>
               {plans.length > 0 ? (
                 <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
@@ -485,11 +488,13 @@ export default function OrganizationScreen() {
               .join(', ')}
           </Text>
         ) : null}
-        <Text style={{ color: theme.textSecondary, fontSize: 12, fontStyle: 'italic' }}>
-          Demo mode: tap "Act as" on any member below to preview the app with their permissions.
-          With a real backend this becomes your login.
-        </Text>
-        {platformAdmin && !isPlatformAdmin ? (
+        {!authSession ? (
+          <Text style={{ color: theme.textSecondary, fontSize: 12, fontStyle: 'italic' }}>
+            Demo mode: tap "Act as" on any member below to preview the app with their permissions.
+            With a real account this is your login.
+          </Text>
+        ) : null}
+        {!authSession && platformAdmin && !isPlatformAdmin ? (
           <Button
             title="Switch back to platform owner"
             variant="secondary"
@@ -575,7 +580,8 @@ export default function OrganizationScreen() {
               </View>
             </View>
             <View style={styles.memberActions}>
-              {user!.id !== currentUser?.id ? (
+              {!authSession && user!.id !== currentUser?.id ? (
+                // Demo-mode only: with a real login, you are who you signed in as.
                 <Button title="Act as" variant="secondary" compact onPress={() => switchUser(user!.id)} />
               ) : null}
               {canManageMembers ? (

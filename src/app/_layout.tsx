@@ -41,6 +41,7 @@ export default function RootLayout() {
         <Stack.Screen name="schedule-form" options={{ title: 'Maintenance schedule', presentation: 'modal' }} />
         <Stack.Screen name="unit-form" options={{ title: 'Unit', presentation: 'modal' }} />
         <Stack.Screen name="org-form" options={{ title: 'Company', presentation: 'modal' }} />
+        <Stack.Screen name="create-company" options={{ title: 'Create your company', presentation: 'modal' }} />
         <Stack.Screen name="platform-setup" options={{ title: 'Platform setup', presentation: 'modal' }} />
         <Stack.Screen name="account" options={{ title: 'Account & sync', presentation: 'modal' }} />
         <Stack.Screen name="reports" options={{ title: 'Reports' }} />

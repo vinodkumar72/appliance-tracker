@@ -22,6 +22,7 @@ create table public.organizations (
   name text not null,
   address text,
   phone text,
+  self_served boolean not null default false,  -- created via self-serve signup (migration-016)
   created_at text,
   updated_at timestamptz not null default now()
 );

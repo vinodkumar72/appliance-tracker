@@ -24,13 +24,18 @@ export default function PricingScreen() {
       <PlanTable />
 
       <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-        Ready to start? Request an invite and we'll onboard your company and send your sign-in
-        details.
+        Start on the free tier in minutes — no credit card required. Create an account, set up your
+        company, and upgrade whenever you outgrow it. Prefer a guided start? Request an invite and
+        we'll set you up.
       </Text>
 
       <View style={{ gap: Spacing.two, marginTop: Spacing.two }}>
-        <Button title="Request an invite" onPress={() => router.push('/request-invite')} />
-        <Button title="Sign in" variant="secondary" onPress={() => router.push('/sign-in')} />
+        <Button title="Start free" onPress={() => router.push('/sign-in?mode=signup' as never)} />
+        <Button
+          title="Request an invite"
+          variant="secondary"
+          onPress={() => router.push('/request-invite')}
+        />
       </View>
     </PublicPage>
   );

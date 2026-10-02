@@ -33,7 +33,9 @@ export default function DashboardScreen() {
               <Button title="Set up platform" onPress={() => router.push('/platform-setup')} />
             ) : isPlatformAdmin ? (
               <Button title="Onboard a company" onPress={() => router.push('/org-form')} />
-            ) : null}
+            ) : (
+              <Button title="Create your company" onPress={() => router.push('/create-company')} />
+            )}
             <Button title="Load sample data" variant="secondary" onPress={loadSampleData} />
           </View>
         </EmptyState>

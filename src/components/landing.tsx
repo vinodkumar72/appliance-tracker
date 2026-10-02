@@ -120,7 +120,7 @@ export function Landing() {
             read-only window for the investors whose properties you manage.
           </Text>
           <View style={styles.ctaRow}>
-            <Button title="Request an invite" onPress={() => router.push('/request-invite')} />
+            <Button title="Start free" onPress={() => router.push('/sign-in?mode=signup' as never)} />
             <Button
               title="See how it works"
               variant="secondary"
@@ -128,7 +128,7 @@ export function Landing() {
             />
           </View>
           <Text style={[styles.heroFine, { color: theme.textSecondary }]}>
-            iOS · Android · Web — works offline, syncs itself
+            Free to start — no credit card required · iOS · Android · Web — works offline
           </Text>
         </View>
 

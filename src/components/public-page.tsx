@@ -51,13 +51,18 @@ export function PublicNav() {
             </Text>
           );
         })}
-        <Pressable
+        <Text
           onPress={() => router.push('/sign-in')}
+          style={[styles.navLink, { color: theme.textSecondary }]}>
+          Sign in
+        </Text>
+        <Pressable
+          onPress={() => router.push('/sign-in?mode=signup' as never)}
           style={({ pressed }) => [
             styles.signInButton,
             { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 1 },
           ]}>
-          <Text style={{ color: theme.onTint, fontWeight: '700', fontSize: 14 }}>Sign in</Text>
+          <Text style={{ color: theme.onTint, fontWeight: '700', fontSize: 14 }}>Start free</Text>
         </Pressable>
       </View>
     </View>

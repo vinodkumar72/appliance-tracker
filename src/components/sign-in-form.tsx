@@ -21,7 +21,14 @@ const MARKETING_SITE_URL = '';
  * mode are hidden: users get credentials from their property management
  * company, and prospects are pointed at the website.
  */
-export function SignInForm({ variant = 'web' }: { variant?: 'web' | 'native' }) {
+export function SignInForm({
+  variant = 'web',
+  startInSignUp = false,
+}: {
+  variant?: 'web' | 'native';
+  /** Signup-first presentation (the "Start free" entry point). */
+  startInSignUp?: boolean;
+}) {
   const theme = useTheme();
   const router = useRouter();
   const setDemoMode = useAppStore((s) => s.setDemoMode);
@@ -29,6 +36,7 @@ export function SignInForm({ variant = 'web' }: { variant?: 'web' | 'native' }) 
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [signUpMode, setSignUpMode] = useState(startInSignUp && variant === 'web');
 
   const signIn = async () => {
     setBusy(true);
@@ -105,16 +113,29 @@ export function SignInForm({ variant = 'web' }: { variant?: 'web' | 'native' }) 
         secureTextEntry
       />
       <View style={{ gap: Spacing.two }}>
-        <Button title={busy ? 'Working…' : 'Sign in'} onPress={busy ? () => {} : signIn} />
+        {signUpMode ? (
+          <Button
+            title={busy ? 'Working…' : 'Create free account'}
+            onPress={busy ? () => {} : signUp}
+          />
+        ) : (
+          <Button title={busy ? 'Working…' : 'Sign in'} onPress={busy ? () => {} : signIn} />
+        )}
         {variant === 'web' ? (
-          <Button title="Create account" variant="secondary" onPress={busy ? () => {} : signUp} />
+          <Text
+            style={{ color: theme.tint, fontSize: 14, fontWeight: '600', textAlign: 'center' }}
+            onPress={() => setSignUpMode((m) => !m)}>
+            {signUpMode ? 'Already have an account? Sign in' : 'New to PropsLane? Create a free account'}
+          </Text>
         ) : null}
-        <Button
-          title="Forgot password?"
-          variant="secondary"
-          onPress={busy ? () => {} : forgotPassword}
-        />
-        {variant === 'web' ? (
+        {!signUpMode ? (
+          <Button
+            title="Forgot password?"
+            variant="secondary"
+            onPress={busy ? () => {} : forgotPassword}
+          />
+        ) : null}
+        {variant === 'web' && !signUpMode ? (
           <Button
             title="Continue offline (demo)"
             variant="secondary"
@@ -143,6 +164,15 @@ export function SignInForm({ variant = 'web' }: { variant?: 'web' | 'native' }) 
             ) : (
               'Visit our website to learn more.'
             )}
+          </Text>
+        </View>
+      ) : signUpMode ? (
+        <View style={[styles.guidance, { backgroundColor: theme.tintSoft, borderColor: theme.tint }]}>
+          <Text style={[styles.guidanceTitle, { color: theme.text }]}>🚀 Starting fresh?</Text>
+          <Text style={[styles.guidanceBody, { color: theme.text }]}>
+            Create your account, then set up your company — you start on the free tier and can
+            invite your team by email. Invited by a company that already uses PropsLane? Use the
+            link in your invitation email instead.
           </Text>
         </View>
       ) : (

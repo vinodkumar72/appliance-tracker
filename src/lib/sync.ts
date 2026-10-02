@@ -47,6 +47,7 @@ const toOrgRow = (o: Organization): Row => ({
   name: o.name,
   address: nul(o.address),
   phone: nul(o.phone),
+  self_served: o.selfServed ?? false,
   created_at: nul(o.createdAt),
   updated_at: o.updatedAt ?? new Date(0).toISOString(),
 });
@@ -55,6 +56,7 @@ const fromOrgRow = (r: Row): Organization => ({
   name: r.name,
   address: und(r.address),
   phone: und(r.phone),
+  ...(r.self_served ? { selfServed: true } : {}),
   createdAt: r.created_at ?? today(),
   updatedAt: r.updated_at,
 });

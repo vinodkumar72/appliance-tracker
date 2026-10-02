@@ -81,6 +81,8 @@ export interface Organization extends Syncable {
   address?: string;
   /** Company phone number. */
   phone?: string;
+  /** Created via self-serve signup (vs onboarded by the platform owner). */
+  selfServed?: boolean;
   createdAt: string;
 }
 
