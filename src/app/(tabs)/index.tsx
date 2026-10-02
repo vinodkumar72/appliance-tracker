@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TaskRow } from '@/components/task-row';
 import { Badge, Button, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
@@ -85,6 +85,27 @@ export default function DashboardScreen() {
         <StatCard label="Overdue" value={overdue.length} tone={overdue.length ? 'danger' : undefined} />
         <StatCard label="Due in 30 days" value={dueSoon.length} tone={dueSoon.length ? 'warning' : undefined} />
       </View>
+
+      {Platform.OS === 'web' ? (
+        <Pressable
+          onPress={() => router.push('/reports')}
+          style={({ pressed }) => [
+            styles.reportsRow,
+            {
+              backgroundColor: pressed ? theme.backgroundSelected : theme.tintSoft,
+              borderColor: theme.tint,
+            },
+          ]}>
+          <Text style={{ fontSize: 28 }}>📊</Text>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800' }}>Reports</Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+              Costs, inventory, warranties, and due maintenance — filter, print, or export CSV.
+            </Text>
+          </View>
+          <Text style={{ color: theme.tint, fontSize: 22, fontWeight: '700' }}>›</Text>
+        </Pressable>
+      ) : null}
 
       <SectionHeader
         title="Needs attention"
@@ -176,6 +197,15 @@ function StatCard({
 }
 
 const styles = StyleSheet.create({
+  reportsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.three,
+  },
   emptyButtons: {
     gap: Spacing.two,
     marginTop: Spacing.three,

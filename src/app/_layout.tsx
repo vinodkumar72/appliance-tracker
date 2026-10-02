@@ -43,6 +43,7 @@ export default function RootLayout() {
         <Stack.Screen name="org-form" options={{ title: 'Company', presentation: 'modal' }} />
         <Stack.Screen name="platform-setup" options={{ title: 'Platform setup', presentation: 'modal' }} />
         <Stack.Screen name="account" options={{ title: 'Account & sync', presentation: 'modal' }} />
+        <Stack.Screen name="reports" options={{ title: 'Reports' }} />
         <Stack.Screen name="about" options={{ title: 'About', headerShown: false }} />
         <Stack.Screen name="sign-in" options={{ title: 'Sign in', headerShown: false }} />
         <Stack.Screen name="how-it-works" options={{ title: 'How it works', headerShown: false }} />
