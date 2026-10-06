@@ -1,0 +1,18 @@
+# PropsLane — public marketing pages are indexable; the signed-in app is not.
+User-agent: *
+Allow: /
+Disallow: /properties
+Disallow: /tasks
+Disallow: /organization
+Disallow: /account
+Disallow: /reports
+Disallow: /property/
+Disallow: /appliance/
+Disallow: /unit/
+Disallow: /*-form
+Disallow: /upgrade
+Disallow: /create-company
+Disallow: /platform-setup
+Disallow: /retire-appliance
+
+Sitemap: https://propslane.com/sitemap.xml

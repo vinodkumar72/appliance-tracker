@@ -28,7 +28,7 @@
       ]
     },
     "web": {
-      "output": "single",
+      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -54,7 +54,9 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
+      "router": {
+        "sitemap": false
+      },
       "eas": {
         "projectId": "ec6dd220-6fe1-4ccf-9aaf-759c1a32b1d5"
       }

@@ -1,8 +1,9 @@
 import 'react-native-url-polyfill/auto';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+
+import { storage } from './storage';
 
 // The publishable (anon) key is safe to ship in the client — all data access
 // is enforced server-side by the row-level security policies in
@@ -28,7 +29,7 @@ export const initialAuthLinkType: string | null =
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: AsyncStorage,
+    storage,
     autoRefreshToken: true,
     persistSession: true,
     // On web, pick up the session from invitation/confirmation links.

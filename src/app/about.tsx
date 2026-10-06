@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PageHero, PublicPage } from '@/components/public-page';
@@ -36,10 +36,12 @@ const FEATURES: { title: string; body: string }[] = [
 /** Public page: what the product is, for prospects who found the app. */
 export default function AboutScreen() {
   const theme = useTheme();
-  const router = useRouter();
 
   return (
-    <PublicPage>
+    <PublicPage
+      title="About"
+      description="PropsLane is the maintenance, warranty, and repair system for property management companies: label scanning, automatic maintenance schedules, warranty alerts, team roles, and an investor portal."
+      path="/about">
       <Stack.Screen options={{ title: 'About' }} />
       <PageHero
         emoji="🏠"
@@ -50,16 +52,18 @@ export default function AboutScreen() {
       <SectionHeader title="What's inside" />
       {FEATURES.map((f) => (
         <Card key={f.title}>
-          <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>{f.title}</Text>
+          <Text role="heading" aria-level={3} style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
+            {f.title}
+          </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 14 }}>{f.body}</Text>
         </Card>
       ))}
 
       <SectionHeader title="Get started" />
       <View style={{ gap: Spacing.two }}>
-        <Button title="Request an invite" onPress={() => router.push('/request-invite')} />
-        <Button title="See pricing" variant="secondary" onPress={() => router.push('/pricing')} />
-        <Button title="Sign in" variant="secondary" onPress={() => router.push('/sign-in')} />
+        <Button title="Request an invite" href="/request-invite" />
+        <Button title="See pricing" variant="secondary" href="/pricing" />
+        <Button title="Sign in" variant="secondary" href="/sign-in" />
       </View>
     </PublicPage>
   );

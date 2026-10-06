@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -21,7 +21,6 @@ const NOT_SURE = 'not-sure';
 /** Public page: prospective customers ask to be onboarded. No account needed. */
 export default function RequestInviteScreen() {
   const theme = useTheme();
-  const router = useRouter();
   const [company, setCompany] = useState('');
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
@@ -65,20 +64,23 @@ export default function RequestInviteScreen() {
 
   if (sent) {
     return (
-      <PublicPage>
+      <PublicPage title="Request an invite" path="/request-invite">
         <Stack.Screen options={{ title: 'Request an invite' }} />
         <PageHero
           emoji="📬"
           title="Request sent!"
           subtitle={`We'll review it and email an invitation to ${email.trim()} to get ${company.trim()} set up.`}
         />
-        <Button title="Go to sign in" onPress={() => router.replace('/sign-in')} />
+        <Button title="Go to sign in" href="/sign-in" />
       </PublicPage>
     );
   }
 
   return (
-    <PublicPage>
+    <PublicPage
+      title="Request an invite"
+      description="Tell us about your property management company and we'll set you up on PropsLane with an invitation by email."
+      path="/request-invite">
       <Stack.Screen options={{ title: 'Request an invite' }} />
       <PageHero
         emoji="🏢"
@@ -137,7 +139,7 @@ export default function RequestInviteScreen() {
       />
       <View style={{ gap: Spacing.two }}>
         <Button title={busy ? 'Sending…' : 'Send request'} onPress={busy ? () => {} : submit} />
-        <Button title="Back to home" variant="secondary" onPress={() => router.replace('/')} />
+        <Button title="Back to home" variant="secondary" href="/" />
       </View>
       {status ? (
         <Card>

@@ -19,7 +19,14 @@ export default function SignInScreen() {
   }, []);
 
   return (
-    <PublicPage>
+    <PublicPage
+      title={signUp ? 'Start free' : 'Sign in'}
+      description={
+        signUp
+          ? 'Create your PropsLane account, name your company, and start tracking appliances free — no credit card required.'
+          : 'Sign in to your PropsLane company account. Your data syncs to this device once you are in.'
+      }
+      path="/sign-in">
       <Stack.Screen options={{ title: signUp ? 'Start free' : 'Sign in' }} />
       <PageHero
         emoji={signUp ? '🚀' : '🔑'}

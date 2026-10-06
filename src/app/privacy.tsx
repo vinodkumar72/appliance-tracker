@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -11,7 +11,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   const theme = useTheme();
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      <Text role="heading" aria-level={2} style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
       <Text style={[styles.body, { color: theme.textSecondary }]}>{children}</Text>
     </View>
   );
@@ -19,10 +19,12 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 /** Public page: privacy policy (required for the app stores). */
 export default function PrivacyScreen() {
-  const router = useRouter();
 
   return (
-    <PublicPage>
+    <PublicPage
+      title="Privacy policy"
+      description="How PropsLane collects, uses, stores, and protects your data, and the choices you have."
+      path="/privacy">
       <Stack.Screen options={{ title: 'Privacy policy' }} />
       <PageHero
         emoji="🔒"
@@ -94,8 +96,8 @@ export default function PrivacyScreen() {
       </Section>
 
       <View style={{ gap: Spacing.two, marginTop: Spacing.two }}>
-        <Button title="Contact us" onPress={() => router.push('/contact')} />
-        <Button title="Back to home" variant="secondary" onPress={() => router.replace('/')} />
+        <Button title="Contact us" href="/contact" />
+        <Button title="Back to home" variant="secondary" href="/" />
       </View>
     </PublicPage>
   );

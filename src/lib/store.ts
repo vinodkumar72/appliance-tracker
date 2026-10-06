@@ -1,10 +1,10 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { addDays, addMonths, daysUntil, nowISO, today } from './dates';
 import { APPLIANCE_TYPES } from './defaults';
 import { buildSeedData } from './seed';
+import { storage } from './storage';
 import type {
   Appliance,
   DeletionRecord,
@@ -616,7 +616,7 @@ export const useAppStore = create<AppState>()(
     {
       name: 'appliance-tracker-v1',
       version: 5,
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => storage),
       partialize: (s) => ({
         organizations: s.organizations,
         users: s.users,

@@ -1,105 +1,120 @@
-import { Redirect, usePathname, useRouter } from 'expo-router';
+import { Href, Link, Redirect, usePathname } from 'expo-router';
+import Head from 'expo-router/head';
 import { ReactNode } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import {
+  DEFAULT_DESCRIPTION,
+  OG_IMAGE,
+  SITE_NAME,
+  SITE_TAGLINE,
+  SITE_URL,
+  jsonLd,
+} from '@/lib/site';
 
 const logoMark = require('../../assets/images/logo-mark.png');
 
-/** The PropsLane mark + wordmark, used in the nav and footer. */
-export function BrandLockup({ size = 26, onPress }: { size?: number; onPress?: () => void }) {
+/** The PropsLane mark + wordmark, used in the nav and footer. A real link when `href` is given. */
+export function BrandLockup({ size = 26, href }: { size?: number; href?: Href }) {
   const theme = useTheme();
-  return (
-    <Pressable onPress={onPress} style={styles.brandRow} disabled={!onPress}>
-      <Image source={logoMark} style={{ width: size, height: size, borderRadius: size * 0.23 }} />
+  const content = (
+    <>
+      <Image
+        source={logoMark}
+        accessibilityLabel="PropsLane logo"
+        style={{ width: size, height: size, borderRadius: size * 0.23 }}
+      />
       <Text style={[styles.brand, { color: theme.text, fontSize: size * 0.65 + 0.5 }]}>
         Props<Text style={{ color: theme.tint }}>Lane</Text>
       </Text>
-    </Pressable>
+    </>
+  );
+  if (!href) return <View style={styles.brandRow}>{content}</View>;
+  return (
+    <Link href={href} asChild>
+      <Pressable style={styles.brandRow}>{content}</Pressable>
+    </Link>
   );
 }
 
-const NAV_LINKS: { label: string; path: string }[] = [
+const NAV_LINKS: { label: string; path: Href }[] = [
   { label: 'About', path: '/about' },
   { label: 'How it works', path: '/how-it-works' },
   { label: 'Pricing', path: '/pricing' },
   { label: 'Contact', path: '/contact' },
 ];
 
-/** Shared top navigation for the public site. Sign-in lives top right. */
+/**
+ * Shared top navigation for the public site. Sign-in lives top right.
+ * Everything here is a real anchor (expo-router Link) so crawlers can follow it.
+ */
 export function PublicNav() {
   const theme = useTheme();
-  const router = useRouter();
   const pathname = usePathname();
 
   return (
-    <View style={styles.nav}>
-      <BrandLockup onPress={() => router.push('/')} />
+    <View style={styles.nav} role="navigation">
+      <BrandLockup href="/" />
       <View style={styles.navLinks}>
         {NAV_LINKS.map((link) => {
           const active = pathname === link.path;
           return (
-            <Text
-              key={link.path}
-              onPress={() => router.push(link.path as never)}
-              style={[
-                styles.navLink,
-                { color: active ? theme.tint : theme.textSecondary },
-              ]}>
+            <Link
+              key={String(link.path)}
+              href={link.path}
+              style={[styles.navLink, { color: active ? theme.tint : theme.textSecondary }]}>
               {link.label}
-            </Text>
+            </Link>
           );
         })}
-        <Text
-          onPress={() => router.push('/sign-in')}
-          style={[styles.navLink, { color: theme.textSecondary }]}>
+        <Link href="/sign-in" style={[styles.navLink, { color: theme.textSecondary }]}>
           Sign in
-        </Text>
-        <Pressable
-          onPress={() => router.push('/sign-in?mode=signup' as never)}
-          style={({ pressed }) => [
-            styles.signInButton,
-            { backgroundColor: theme.tint, opacity: pressed ? 0.8 : 1 },
-          ]}>
-          <Text style={{ color: theme.onTint, fontWeight: '700', fontSize: 14 }}>Start free</Text>
-        </Pressable>
+        </Link>
+        <Link href="/sign-in?mode=signup" asChild>
+          {/* Link's asChild slot needs a single style object, not an array. */}
+          <Pressable style={StyleSheet.flatten([styles.signInButton, { backgroundColor: theme.tint }])}>
+            <Text style={{ color: theme.onTint, fontWeight: '700', fontSize: 14 }}>Start free</Text>
+          </Pressable>
+        </Link>
       </View>
     </View>
   );
 }
 
+const FOOTER_LINKS: { label: string; path: Href }[] = [
+  ...NAV_LINKS,
+  { label: 'FAQ', path: '/faq' },
+  { label: 'Request an invite', path: '/request-invite' },
+  { label: 'Privacy policy', path: '/privacy' },
+  { label: 'Sign in', path: '/sign-in' },
+];
+
 /** Shared footer for the public site. */
 export function PublicFooter() {
   const theme = useTheme();
-  const router = useRouter();
   return (
-    <View style={[styles.footer, { borderTopColor: theme.border }]}>
+    <View style={[styles.footer, { borderTopColor: theme.border }]} role="contentinfo">
       <BrandLockup size={20} />
       <Text style={{ color: theme.textSecondary, fontSize: 12, textAlign: 'center' }}>
         Appliance & maintenance tracking for property managers — and the investors they serve.
       </Text>
       <View style={styles.footerLinks}>
-        {[
-          ...NAV_LINKS,
-          { label: 'FAQ', path: '/faq' },
-          { label: 'Request an invite', path: '/request-invite' },
-          { label: 'Privacy policy', path: '/privacy' },
-          { label: 'Sign in', path: '/sign-in' },
-        ].map((link) => (
-          <Text
-            key={link.path}
-            onPress={() => router.push(link.path as never)}
+        {FOOTER_LINKS.map((link) => (
+          <Link
+            key={String(link.path)}
+            href={link.path}
             style={[styles.footerLink, { color: theme.textSecondary }]}>
             {link.label}
-          </Text>
+          </Link>
         ))}
       </View>
     </View>
   );
 }
 
-/** Consistent hero header for public pages: tinted icon badge, title, subtitle. */
+/** Consistent hero header for public pages: tinted icon badge, title (the page's h1), subtitle. */
 export function PageHero({
   emoji,
   title,
@@ -115,7 +130,9 @@ export function PageHero({
       <View style={[styles.heroBadge, { backgroundColor: theme.tintSoft }]}>
         <Text style={styles.heroEmoji}>{emoji}</Text>
       </View>
-      <Text style={[styles.heroTitle, { color: theme.text }]}>{title}</Text>
+      <Text role="heading" aria-level={1} style={[styles.heroTitle, { color: theme.text }]}>
+        {title}
+      </Text>
       {subtitle ? (
         <Text style={[styles.heroSubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
       ) : null}
@@ -123,36 +140,84 @@ export function PageHero({
   );
 }
 
-/** Page wrapper for public pages: sticky top nav, centered content column, footer. */
-export function PublicPage({ children }: { children: ReactNode }) {
+/**
+ * Page wrapper for public pages: sticky top nav, centered content column, footer.
+ *
+ * Also owns the page's search metadata. `title` becomes "<title> · PropsLane"
+ * (omit it on the homepage), `description` feeds the meta description and
+ * link previews, `path` sets the canonical URL, and `jsonLd` emits structured
+ * data (schema.org) for rich results.
+ */
+export function PublicPage({
+  title,
+  description = DEFAULT_DESCRIPTION,
+  path,
+  jsonLd: structuredData,
+  children,
+}: {
+  title?: string;
+  description?: string;
+  path?: string;
+  jsonLd?: object | object[];
+  children: ReactNode;
+}) {
   const theme = useTheme();
   // The public site is web-only; on the mobile apps these routes go home,
   // where the gate shows sign-in (signed out) or the app (signed in).
   if (Platform.OS !== 'web') {
     return <Redirect href="/" />;
   }
+  const fullTitle = title ? `${title} · ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
+  const url = path ? `${SITE_URL}${path}` : undefined;
+  const schemas = structuredData
+    ? Array.isArray(structuredData)
+      ? structuredData
+      : [structuredData]
+    : [];
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.background }}
-      stickyHeaderIndices={[0]}>
-      <View
-        style={[
-          styles.navWrap,
-          { backgroundColor: theme.background, borderBottomColor: theme.border },
-        ]}>
-        <View style={styles.inner}>
-          <PublicNav />
+    <>
+      <Head>
+        <title>{fullTitle}</title>
+        <meta name="description" content={description} />
+        {url ? <link rel="canonical" href={url} /> : null}
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content={SITE_NAME} />
+        <meta property="og:title" content={fullTitle} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={OG_IMAGE} />
+        {url ? <meta property="og:url" content={url} /> : null}
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content={fullTitle} />
+        <meta name="twitter:description" content={description} />
+        <meta name="twitter:image" content={OG_IMAGE} />
+        {schemas.map((schema, i) => (
+          <script key={i} type="application/ld+json">
+            {jsonLd(schema)}
+          </script>
+        ))}
+      </Head>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: theme.background }}
+        stickyHeaderIndices={[0]}>
+        <View
+          style={[
+            styles.navWrap,
+            { backgroundColor: theme.background, borderBottomColor: theme.border },
+          ]}>
+          <View style={styles.inner}>
+            <PublicNav />
+          </View>
         </View>
-      </View>
-      <View style={styles.contentWrap}>
-        <View style={[styles.inner, styles.content]}>{children}</View>
-      </View>
-      <View style={styles.footerWrap}>
-        <View style={styles.inner}>
-          <PublicFooter />
+        <View style={styles.contentWrap}>
+          <View style={[styles.inner, styles.content]}>{children}</View>
         </View>
-      </View>
-    </ScrollView>
+        <View style={styles.footerWrap}>
+          <View style={styles.inner}>
+            <PublicFooter />
+          </View>
+        </View>
+      </ScrollView>
+    </>
   );
 }
 

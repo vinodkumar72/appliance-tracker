@@ -1,3 +1,4 @@
+import { Href, Link } from 'expo-router';
 import { ReactNode } from 'react';
 import {
   Pressable,
@@ -43,7 +44,9 @@ export function SectionHeader({ title, right }: { title: string; right?: ReactNo
   const theme = useTheme();
   return (
     <View style={styles.sectionHeader}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      <Text role="heading" aria-level={2} style={[styles.sectionTitle, { color: theme.text }]}>
+        {title}
+      </Text>
       {right}
     </View>
   );
@@ -70,14 +73,20 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: Badge
   );
 }
 
+/**
+ * Primary action button. Pass `href` for navigation: it then renders as a real
+ * link (an <a> on web, so crawlers can follow it) that still looks like a button.
+ */
 export function Button({
   title,
   onPress,
+  href,
   variant = 'primary',
   compact,
 }: {
   title: string;
-  onPress: () => void;
+  onPress?: () => void;
+  href?: Href;
   variant?: 'primary' | 'secondary' | 'danger';
   compact?: boolean;
 }) {
@@ -85,17 +94,32 @@ export function Button({
   const background =
     variant === 'primary' ? theme.tint : variant === 'danger' ? theme.danger : theme.backgroundSelected;
   const color = variant === 'secondary' ? theme.text : theme.onTint;
+  const baseStyle = [
+    styles.button,
+    compact && styles.buttonCompact,
+    variant === 'primary' && styles.buttonElevated,
+    variant === 'secondary' && { borderWidth: 1, borderColor: theme.border },
+    { backgroundColor: background },
+  ];
+  const label = (
+    <Text style={[styles.buttonText, compact && styles.buttonTextCompact, { color }]}>{title}</Text>
+  );
+  if (href) {
+    // Link's asChild slot merges the child's style as a plain object, so it
+    // must be a single flattened object here (no array, no function).
+    return (
+      <Link href={href} asChild>
+        <Pressable onPress={onPress} style={StyleSheet.flatten(baseStyle)}>
+          {label}
+        </Pressable>
+      </Link>
+    );
+  }
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        compact && styles.buttonCompact,
-        variant === 'primary' && styles.buttonElevated,
-        variant === 'secondary' && { borderWidth: 1, borderColor: theme.border },
-        { backgroundColor: background, opacity: pressed ? 0.8 : 1 },
-      ]}>
-      <Text style={[styles.buttonText, compact && styles.buttonTextCompact, { color }]}>{title}</Text>
+      style={({ pressed }) => [...baseStyle, { opacity: pressed ? 0.8 : 1 }]}>
+      {label}
     </Pressable>
   );
 }

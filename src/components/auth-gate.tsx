@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { usePathname } from 'expo-router';
+import { usePathname, useSegments } from 'expo-router';
 import { ReactNode, useEffect, useState } from 'react';
 import { Image, Platform, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { Button, Card, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAutoSync } from '@/lib/auto-sync';
+import { isPublicPath } from '@/lib/site';
 import { useAppStore } from '@/lib/store';
 import { initialAuthLinkType, supabase } from '@/lib/supabase';
 import { syncNow } from '@/lib/sync';
@@ -48,6 +49,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const pathname = usePathname();
+  const segments = useSegments();
+  const isNotFound = segments[0] === '+not-found';
   // Invited users complete their profile (phone, company address) on arrival.
   const [needsProfile, setNeedsProfile] = useState(initialAuthLinkType === 'invite');
   const [userPhone, setUserPhone] = useState('');
@@ -74,7 +77,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
   let overlay: ReactNode = null;
 
   if (!checked || !hydrated) {
-    overlay = <View style={{ flex: 1, backgroundColor: theme.background }} />;
+    // Session check and store hydration are still pending. This is also what
+    // static rendering (web.output: "static") captures at build time, so on
+    // web the pages that need no account render their real content here —
+    // the HTML works without JavaScript, and the client's first render
+    // matches it. The app itself stays blank until the checks finish.
+    if (Platform.OS === 'web' && pathname === '/') {
+      overlay = <Landing />;
+    } else if (Platform.OS === 'web' && (isPublicPath(pathname) || isNotFound)) {
+      overlay = null;
+    } else {
+      overlay = <View style={{ flex: 1, backgroundColor: theme.background }} />;
+    }
   } else if (session && needsPassword) {
     const savePassword = async () => {
       if (newPassword.length < 6) {
@@ -243,19 +257,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
           </Screen>
         );
       } else {
-        // Web: public pages are reachable without an account.
-        const PUBLIC_PATHS = [
-          '/about',
-          '/pricing',
-          '/request-invite',
-          '/sign-in',
-          '/how-it-works',
-          '/contact',
-          '/privacy',
-          '/faq',
-        ];
-        if (!PUBLIC_PATHS.includes(pathname)) {
-          // Signed-out web visitors get the marketing homepage.
+        // Web: public pages and the 404 screen are reachable without an
+        // account. "/" and any app route show the marketing homepage.
+        if (pathname === '/' || (!isPublicPath(pathname) && !isNotFound)) {
           overlay = <Landing />;
         }
       }
@@ -266,7 +270,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // gate overlay instead of unmounting it.
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flex: 1, display: overlay ? 'none' : 'flex' }}>{children}</View>
+      {/* aria-hidden keeps the hidden app's headings and links out of the accessibility tree
+          (and out of what crawlers read) while a gate screen is showing. */}
+      <View style={{ flex: 1, display: overlay ? 'none' : 'flex' }} aria-hidden={!!overlay}>
+        {children}
+      </View>
       {overlay ? (
         <View style={{ flex: 1, backgroundColor: theme.background }}>{overlay}</View>
       ) : null}

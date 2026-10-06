@@ -1,13 +1,17 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
+import { Platform } from 'react-native';
 
 import { AuthGate } from '@/components/auth-gate';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
+import { isPublicPath } from '@/lib/site';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const pathname = usePathname();
   const theme = useTheme();
   const base = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   const navTheme = {
@@ -23,6 +27,12 @@ export default function RootLayout() {
   };
   return (
     <ThemeProvider value={navTheme}>
+      {/* Only the public marketing pages belong in search results; the app itself is noindex. */}
+      {Platform.OS === 'web' && !isPublicPath(pathname) ? (
+        <Head>
+          <meta name="robots" content="noindex" />
+        </Head>
+      ) : null}
       <AuthGate>
       <Stack
         screenOptions={{
@@ -60,6 +70,7 @@ export default function RootLayout() {
         <Stack.Screen name="subscription-form" options={{ title: 'Subscription', presentation: 'modal' }} />
         <Stack.Screen name="upgrade" options={{ title: 'Upgrade plan', presentation: 'modal' }} />
         <Stack.Screen name="member-form" options={{ title: 'Member', presentation: 'modal' }} />
+        <Stack.Screen name="+not-found" options={{ title: 'Page not found', headerShown: false }} />
       </Stack>
       </AuthGate>
       <StatusBar style="auto" />

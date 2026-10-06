@@ -24,9 +24,8 @@ const perUnit = (n: number) => `$${n.toFixed(2)}`;
 
 /**
  * Plan-comparison table driven by the live plan catalog (the `plans` table,
- * publicly readable). Not currently shown on /pricing — the Stripe-hosted
- * pricing table took its place there — but kept for reuse (e.g. an in-app
- * upgrade screen or a "compare limits" section).
+ * publicly readable, mirrored from Stripe). Shown on /pricing; the plans load
+ * in the browser, so the page carries a static summary above it for crawlers.
  */
 export function PlanTable() {
   const theme = useTheme();

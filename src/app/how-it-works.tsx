@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { PageHero, PublicPage } from '@/components/public-page';
@@ -9,7 +9,8 @@ import { useTheme } from '@/hooks/use-theme';
 interface Step {
   title: string;
   body: string;
-  images: number[];
+  /** Screenshots with alt text (what the image shows, for search engines and screen readers). */
+  images: { source: number; alt: string }[];
 }
 
 const STEPS: Step[] = [
@@ -17,21 +18,21 @@ const STEPS: Step[] = [
     title: 'Set up your portfolio',
     body:
       'Add each property once — a single-family home, or a building with units under it. Owner contact details live right on the property (or on each unit, for condos), so the investor behind any building is one tap away.',
-    images: [require('../../assets/demo/02-property.png')],
+    images: [{ source: require('../../assets/demo/02-property.png'), alt: 'Property screen listing a building, its units, and the owner contact' }],
   },
   {
     title: 'Point your camera at the appliance label',
     body:
       'Photograph the label — the sticker with the model and serial number — and AI reads it straight into the form. Pick the appliance type and the recommended maintenance schedule fills itself in: a water heater arrives already knowing it needs an annual flush. About thirty seconds per appliance, and it works offline too.',
-    images: [require('../../assets/demo/05-add-appliance.png')],
+    images: [{ source: require('../../assets/demo/05-add-appliance.png'), alt: 'Add appliance form filled in automatically from a scanned label' }],
   },
   {
     title: 'Every appliance carries its whole history',
     body:
       'Age against expected lifespan, warranty status (flagged before it lapses, not after), every repair with its cost and vendor, and the maintenance schedule — one record per machine. When a filter change or tank flush gets done, one tap marks it done: the reminder resets and the history entry writes itself.',
     images: [
-      require('../../assets/demo/03-appliance-top.png'),
-      require('../../assets/demo/04-appliance-history.png'),
+      { source: require('../../assets/demo/03-appliance-top.png'), alt: 'Appliance record showing age versus lifespan and warranty status' },
+      { source: require('../../assets/demo/04-appliance-history.png'), alt: 'Appliance repair and maintenance history with costs and vendors' },
     ],
   },
   {
@@ -39,8 +40,8 @@ const STEPS: Step[] = [
     body:
       'The Tasks board sorts the whole portfolio by urgency — overdue first, due soon next — each row naming the appliance, unit, and property. The dashboard gives the same picture at a glance: what needs attention, what warranties are expiring, across everything you manage. Technicians check work off from their phone inside the unit; a dead-signal basement just syncs on the walk back to the truck.',
     images: [
-      require('../../assets/demo/06-tasks.png'),
-      require('../../assets/demo/01-dashboard.png'),
+      { source: require('../../assets/demo/06-tasks.png'), alt: 'Tasks board sorted by urgency across the whole portfolio' },
+      { source: require('../../assets/demo/01-dashboard.png'), alt: 'Dashboard showing items needing attention and expiring warranties' },
     ],
   },
   {
@@ -48,8 +49,8 @@ const STEPS: Step[] = [
     body:
       'Six roles, from owner to read-only. Scope a technician to the buildings they service, or an investor to the single condo unit they own — enforced in the database, not just the interface. When an investor signs in, the app reshapes around them: their property, their appliances, live and read-only. What used to be a phone call to you becomes a glance for them.',
     images: [
-      require('../../assets/demo/07-roles.png'),
-      require('../../assets/demo/08-investor.png'),
+      { source: require('../../assets/demo/07-roles.png'), alt: 'Team roles and property scoping settings' },
+      { source: require('../../assets/demo/08-investor.png'), alt: 'Investor view with read-only access to their own property' },
     ],
   },
 ];
@@ -75,10 +76,12 @@ const ROLES: { emoji: string; name: string; blurb: string }[] = [
 /** Public page: the product loop in five steps, every screen the real app. */
 export default function HowItWorksScreen() {
   const theme = useTheme();
-  const router = useRouter();
 
   return (
-    <PublicPage>
+    <PublicPage
+      title="How it works"
+      description="From appliance label to organized portfolio in five steps: set up properties, scan labels, track every appliance's history, surface due dates, and give each role the right window."
+      path="/how-it-works">
       <Stack.Screen options={{ title: 'How it works' }} />
       <PageHero
         emoji="🗺️"
@@ -94,11 +97,16 @@ export default function HowItWorksScreen() {
             </View>
             <View style={[styles.stepLine, { backgroundColor: theme.border }]} />
           </View>
-          <Text style={[styles.stepTitle, { color: theme.text }]}>{step.title}</Text>
+          <Text role="heading" aria-level={2} style={[styles.stepTitle, { color: theme.text }]}>{step.title}</Text>
           <Text style={[styles.stepBody, { color: theme.textSecondary }]}>{step.body}</Text>
-          {step.images.map((source, imageIndex) => (
+          {step.images.map((shot, imageIndex) => (
             <View key={imageIndex} style={[styles.shotFrame, { borderColor: theme.border }]}>
-              <Image source={source} style={styles.shotImage} resizeMode="cover" />
+              <Image
+                source={shot.source}
+                accessibilityLabel={shot.alt}
+                style={styles.shotImage}
+                resizeMode="cover"
+              />
             </View>
           ))}
         </View>
@@ -106,7 +114,7 @@ export default function HowItWorksScreen() {
 
       {/* Who sees what */}
       <View style={styles.rolesBlock}>
-        <Text style={[styles.rolesTitle, { color: theme.text }]}>Who sees what</Text>
+        <Text role="heading" aria-level={2} style={[styles.rolesTitle, { color: theme.text }]}>Who sees what</Text>
         <View style={styles.rolesRow}>
           {ROLES.map((role) => (
             <View
@@ -116,7 +124,7 @@ export default function HowItWorksScreen() {
                 { backgroundColor: theme.backgroundElement, borderColor: theme.border },
               ]}>
               <Text style={styles.roleEmoji}>{role.emoji}</Text>
-              <Text style={[styles.roleName, { color: theme.text }]}>{role.name}</Text>
+              <Text role="heading" aria-level={3} style={[styles.roleName, { color: theme.text }]}>{role.name}</Text>
               <Text style={[styles.roleBlurb, { color: theme.textSecondary }]}>{role.blurb}</Text>
             </View>
           ))}
@@ -125,15 +133,15 @@ export default function HowItWorksScreen() {
 
       {/* Closing */}
       <View style={[styles.closing, { backgroundColor: theme.tintSoft }]}>
-        <Text style={[styles.closingTitle, { color: theme.text }]}>
+        <Text role="heading" aria-level={2} style={[styles.closingTitle, { color: theme.text }]}>
           Know every appliance. Stay ahead of the failures. Keep every owner in the loop.
         </Text>
         <Text style={[styles.closingBody, { color: theme.textSecondary }]}>
           Most companies are set up and tracking their first building the same morning.
         </Text>
         <View style={styles.ctaRow}>
-          <Button title="Request an invite" onPress={() => router.push('/request-invite')} />
-          <Button title="See pricing" variant="secondary" onPress={() => router.push('/pricing')} />
+          <Button title="Request an invite" href="/request-invite" />
+          <Button title="See pricing" variant="secondary" href="/pricing" />
         </View>
       </View>
     </PublicPage>

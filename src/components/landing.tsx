@@ -1,12 +1,33 @@
-import { useRouter } from 'expo-router';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { PublicPage } from '@/components/public-page';
 import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { DEFAULT_DESCRIPTION, OG_IMAGE, SITE_NAME, SITE_URL } from '@/lib/site';
 
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
+
+/** schema.org structured data for the homepage: who we are and what the product is. */
+const STRUCTURED_DATA = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: OG_IMAGE,
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: SITE_NAME,
+    url: SITE_URL,
+    description: DEFAULT_DESCRIPTION,
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'iOS, Android, Web',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  },
+];
 
 const PAINS: { title: string; body: string }[] = [
   {
@@ -92,7 +113,7 @@ function SectionHead({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <View style={styles.sectionHead}>
       <Text style={[styles.sectionEyebrow, { color: theme.tint }]}>{eyebrow}</Text>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
+      <Text role="heading" aria-level={2} style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
     </View>
   );
 }
@@ -100,10 +121,9 @@ function SectionHead({ eyebrow, title }: { eyebrow: string; title: string }) {
 /** Public marketing homepage shown to signed-out visitors at "/". */
 export function Landing() {
   const theme = useTheme();
-  const router = useRouter();
 
   return (
-    <PublicPage>
+    <PublicPage path="/" description={DEFAULT_DESCRIPTION} jsonLd={STRUCTURED_DATA}>
       {/* Hero: pitch + the appliance-label plate */}
       <View style={styles.hero}>
         <View style={styles.heroCopy}>
@@ -112,7 +132,7 @@ export function Landing() {
               FOR PROPERTY MANAGEMENT COMPANIES & INVESTORS
             </Text>
           </View>
-          <Text style={[styles.heroTitle, { color: theme.text }]}>
+          <Text role="heading" aria-level={1} style={[styles.heroTitle, { color: theme.text }]}>
             Every appliance in every unit, accounted for.
           </Text>
           <Text style={[styles.heroSub, { color: theme.textSecondary }]}>
@@ -120,12 +140,8 @@ export function Landing() {
             read-only window for the investors whose properties you manage.
           </Text>
           <View style={styles.ctaRow}>
-            <Button title="Start free" onPress={() => router.push('/sign-in?mode=signup' as never)} />
-            <Button
-              title="See how it works"
-              variant="secondary"
-              onPress={() => router.push('/how-it-works')}
-            />
+            <Button title="Start free" href="/sign-in?mode=signup" />
+            <Button title="See how it works" variant="secondary" href="/how-it-works" />
           </View>
           <Text style={[styles.heroFine, { color: theme.textSecondary }]}>
             Free to start — no credit card required · iOS · Android · Web — works offline
@@ -168,7 +184,7 @@ export function Landing() {
       <View style={styles.painGrid}>
         {PAINS.map((pain) => (
           <View key={pain.title} style={[styles.pain, { borderLeftColor: theme.danger }]}>
-            <Text style={[styles.painTitle, { color: theme.text }]}>{pain.title}</Text>
+            <Text role="heading" aria-level={3} style={[styles.painTitle, { color: theme.text }]}>{pain.title}</Text>
             <Text style={[styles.painBody, { color: theme.textSecondary }]}>{pain.body}</Text>
           </View>
         ))}
@@ -185,7 +201,7 @@ export function Landing() {
           <Text style={[styles.audienceWho, { color: theme.tint }]}>
             FOR PROPERTY MANAGEMENT COMPANIES
           </Text>
-          <Text style={[styles.audienceTitle, { color: theme.text }]}>
+          <Text role="heading" aria-level={3} style={[styles.audienceTitle, { color: theme.text }]}>
             Your whole portfolio, operational.
           </Text>
           {MANAGER_POINTS.map((point) => (
@@ -201,7 +217,7 @@ export function Landing() {
             { backgroundColor: theme.backgroundElement, borderColor: theme.border },
           ]}>
           <Text style={[styles.audienceWho, { color: theme.tint }]}>FOR OWNERS & INVESTORS</Text>
-          <Text style={[styles.audienceTitle, { color: theme.text }]}>
+          <Text role="heading" aria-level={3} style={[styles.audienceTitle, { color: theme.text }]}>
             Your asset, without the phone calls.
           </Text>
           {OWNER_POINTS.map((point) => (
@@ -226,7 +242,7 @@ export function Landing() {
             <View style={[styles.cardEmojiTile, { backgroundColor: theme.tintSoft }]}>
               <Text style={styles.cardEmoji}>{h.emoji}</Text>
             </View>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>{h.title}</Text>
+            <Text role="heading" aria-level={3} style={[styles.cardTitle, { color: theme.text }]}>{h.title}</Text>
             <Text style={[styles.cardBody, { color: theme.textSecondary }]}>{h.body}</Text>
           </View>
         ))}
@@ -240,7 +256,7 @@ export function Landing() {
             <Text style={[styles.stepNumber, { color: theme.tint, borderBottomColor: theme.tint }]}>
               {String(index + 1).padStart(2, '0')}
             </Text>
-            <Text style={[styles.stepTitle, { color: theme.text }]}>{step.title}</Text>
+            <Text role="heading" aria-level={3} style={[styles.stepTitle, { color: theme.text }]}>{step.title}</Text>
             <Text style={[styles.stepBody, { color: theme.textSecondary }]}>{step.body}</Text>
           </View>
         ))}
@@ -248,12 +264,12 @@ export function Landing() {
 
       {/* Closing CTA */}
       <View style={[styles.closing, { backgroundColor: theme.tintSoft }]}>
-        <Text style={[styles.closingTitle, { color: theme.text }]}>
+        <Text role="heading" aria-level={2} style={[styles.closingTitle, { color: theme.text }]}>
           Know every appliance. Keep every owner. Skip every surprise.
         </Text>
         <View style={styles.ctaRow}>
-          <Button title="Request an invite" onPress={() => router.push('/request-invite')} />
-          <Button title="See pricing" variant="secondary" onPress={() => router.push('/pricing')} />
+          <Button title="Request an invite" href="/request-invite" />
+          <Button title="See pricing" variant="secondary" href="/pricing" />
         </View>
       </View>
     </PublicPage>

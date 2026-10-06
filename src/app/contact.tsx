@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -11,7 +11,6 @@ import { supabase } from '@/lib/supabase';
 /** Public page: send us a message. No account needed. */
 export default function ContactScreen() {
   const theme = useTheme();
-  const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [company, setCompany] = useState('');
@@ -42,20 +41,23 @@ export default function ContactScreen() {
 
   if (sent) {
     return (
-      <PublicPage>
+      <PublicPage title="Contact us" path="/contact">
         <Stack.Screen options={{ title: 'Contact us' }} />
         <PageHero
           emoji="✅"
           title="Message sent!"
           subtitle={`Thanks, ${name.trim()} — we'll get back to you at ${email.trim()}.`}
         />
-        <Button title="Back to home" onPress={() => router.replace('/')} />
+        <Button title="Back to home" href="/" />
       </PublicPage>
     );
   }
 
   return (
-    <PublicPage>
+    <PublicPage
+      title="Contact us"
+      description="Questions about plans, onboarding, or anything else? Send PropsLane a message and we'll get back to you."
+      path="/contact">
       <Stack.Screen options={{ title: 'Contact us' }} />
       <PageHero
         emoji="💬"
@@ -92,7 +94,7 @@ export default function ContactScreen() {
       />
       <View style={{ gap: Spacing.two }}>
         <Button title={busy ? 'Sending…' : 'Send message'} onPress={busy ? () => {} : submit} />
-        <Button title="Back to home" variant="secondary" onPress={() => router.replace('/')} />
+        <Button title="Back to home" variant="secondary" href="/" />
       </View>
       {status ? (
         <Card>

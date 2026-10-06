@@ -1,6 +1,22 @@
-# Single-page app: serve index.html for all routes (Apache / cPanel hosting)
+# Static export (web.output "static"): every route is its own HTML file
+# (about.html, faq.html, ...), so URLs map to files instead of one index.html.
 RewriteEngine On
 RewriteBase /
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.html [L]
+
+# Real files and folders (bundles, assets, tesseract, robots.txt, sitemap.xml) are served as-is.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Drop a trailing slash so /about/ and /about are one URL.
+RewriteRule ^(.+)/$ /$1 [R=301,L]
+
+# /about -> about.html (the pre-rendered page), and likewise for every route.
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.+)$ /$1.html [L]
+
+# Signed-in detail screens are dynamic routes, exported as bracket files.
+RewriteRule ^(property|appliance|unit)/[^/]+$ /$1/[id].html [L]
+
+# Anything else is a real 404 served with the pre-rendered not-found page.
+ErrorDocument 404 /+not-found.html

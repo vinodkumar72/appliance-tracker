@@ -1,4 +1,4 @@
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { Fragment } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -120,13 +120,29 @@ const FAQ: { group: string; items: { q: string; a: string }[] }[] = [
   },
 ];
 
+/** schema.org FAQPage: lets search engines show these questions as rich results. */
+const FAQ_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQ.flatMap((section) =>
+    section.items.map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: { '@type': 'Answer', text: item.a },
+    })),
+  ),
+};
+
 /** Public page: frequently asked questions. */
 export default function FaqScreen() {
   const theme = useTheme();
-  const router = useRouter();
 
   return (
-    <PublicPage>
+    <PublicPage
+      title="FAQ"
+      description="Straight answers about what PropsLane does, what it costs, how roles and investor access work, and how your data is handled."
+      path="/faq"
+      jsonLd={FAQ_JSON_LD}>
       <Stack.Screen options={{ title: 'FAQ' }} />
       <PageHero
         emoji="💬"
@@ -136,10 +152,10 @@ export default function FaqScreen() {
 
       {FAQ.map((section) => (
         <Fragment key={section.group}>
-          <Text style={[styles.group, { color: theme.tint }]}>{section.group.toUpperCase()}</Text>
+          <Text role="heading" aria-level={2} style={[styles.group, { color: theme.tint }]}>{section.group.toUpperCase()}</Text>
           {section.items.map((item) => (
             <View key={item.q} style={styles.item}>
-              <Text style={[styles.q, { color: theme.text }]}>{item.q}</Text>
+              <Text role="heading" aria-level={3} style={[styles.q, { color: theme.text }]}>{item.q}</Text>
               <Text style={[styles.a, { color: theme.textSecondary }]}>{item.a}</Text>
             </View>
           ))}
@@ -151,12 +167,8 @@ export default function FaqScreen() {
           Didn't find your answer?
         </Text>
         <View style={styles.ctaRow}>
-          <Button title="Contact us" onPress={() => router.push('/contact')} />
-          <Button
-            title="Start free"
-            variant="secondary"
-            onPress={() => router.push('/sign-in?mode=signup' as never)}
-          />
+          <Button title="Contact us" href="/contact" />
+          <Button title="Start free" variant="secondary" href="/sign-in?mode=signup" />
         </View>
       </View>
     </PublicPage>
