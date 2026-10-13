@@ -38,7 +38,7 @@ export default function UpgradeScreen() {
   if (!currentOrg) {
     return (
       <Screen>
-        <EmptyState emoji="🏢" title="No company selected" message="Select a company first, then upgrade its plan." />
+        <EmptyState emoji="🏢" title="No company selected" message="Select a company first." />
       </Screen>
     );
   }
@@ -59,11 +59,11 @@ export default function UpgradeScreen() {
   if (Platform.OS !== 'web') {
     return (
       <Screen>
-        <Stack.Screen options={{ title: 'Upgrade plan' }} />
+        <Stack.Screen options={{ title: 'Plan' }} />
         <EmptyState
-          emoji="💳"
-          title="Upgrade on the web"
-          message="Plan upgrades are handled through our website — sign in there with this same account and choose Upgrade plan from the Company tab."
+          emoji="🏢"
+          title="Plan managed by your company"
+          message="Your company's plan and limits are set on its account. This app reflects that access; there is nothing to change here."
         />
       </Screen>
     );

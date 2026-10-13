@@ -6,7 +6,7 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge, Button, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { describePlanStatus, getPlanStatus, useOrgPlan } from '@/lib/billing';
+import { PURCHASING_AVAILABLE, describePlanStatus, getPlanStatus, useOrgPlan } from '@/lib/billing';
 import { confirmDestructive } from '@/lib/confirm';
 import { can, ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/permissions';
 import { signOutClean } from '@/lib/sign-out';
@@ -427,7 +427,8 @@ export default function OrganizationScreen() {
                 ? ' The paid plan lapsed, so free-tier limits apply — existing data is untouched.'
                 : ''}
             </Text>
-            {!isPlatformAdmin && (role === 'owner' || role === 'admin') ? (
+            {/* Purchasing lives on the web only (see PURCHASING_AVAILABLE). */}
+            {PURCHASING_AVAILABLE && !isPlatformAdmin && (role === 'owner' || role === 'admin') ? (
               <View style={{ flexDirection: 'row' }}>
                 <Button
                   title="Upgrade plan"
@@ -435,7 +436,7 @@ export default function OrganizationScreen() {
                   onPress={() => router.push('/upgrade')}
                 />
               </View>
-            ) : !isPlatformAdmin ? (
+            ) : PURCHASING_AVAILABLE && !isPlatformAdmin ? (
               <Text style={{ color: theme.textSecondary, fontSize: 12, fontStyle: 'italic' }}>
                 Ask your company owner to upgrade the plan.
               </Text>

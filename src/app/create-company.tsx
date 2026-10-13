@@ -6,6 +6,7 @@ import { Platform, Text, View } from 'react-native';
 import { Button, Card, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { PURCHASING_AVAILABLE } from '@/lib/billing';
 import { supabase } from '@/lib/supabase';
 import { syncNow } from '@/lib/sync';
 
@@ -80,8 +81,10 @@ export default function CreateCompanyScreen() {
     <Screen>
       <Stack.Screen options={{ title: 'Create your company' }} />
       <Text style={{ color: theme.textSecondary, fontSize: 14.5, lineHeight: 22 }}>
-        You'll be the owner. Your company starts on the free tier — upgrade anytime from the
-        Company tab — and you can invite your team by email once you're in.
+        You'll be the owner.{' '}
+        {PURCHASING_AVAILABLE
+          ? 'Your company starts on the free tier — upgrade anytime from the Company tab — and you can invite your team by email once you\'re in.'
+          : 'You can invite your team by email once you\'re in.'}
       </Text>
       <FormField
         label="Company name *"

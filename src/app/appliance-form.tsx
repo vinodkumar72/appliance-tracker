@@ -12,7 +12,7 @@ import { APPLIANCE_TYPES, APPLIANCE_TYPE_ORDER } from '@/lib/defaults';
 import NetInfo from '@react-native-community/netinfo';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
-import { useApplianceLimit } from '@/lib/billing';
+import { PURCHASING_AVAILABLE, useApplianceLimit } from '@/lib/billing';
 import { parseLabelText } from '@/lib/label-parser';
 import { OFFLINE_OCR_AVAILABLE, runOfflineOcr } from '@/lib/ocr';
 import { can } from '@/lib/permissions';
@@ -368,7 +368,14 @@ export default function ApplianceFormScreen() {
           </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
             The {applianceLimit.planName ?? 'current'} plan allows {applianceLimit.max} appliances
-            per unit.{propertyUnits.length > 0 ? ' Pick a different location, or upgrade the plan.' : ' Upgrade the plan to add more.'}
+            per unit.
+            {PURCHASING_AVAILABLE
+              ? propertyUnits.length > 0
+                ? ' Pick a different location, or upgrade the plan.'
+                : ' Upgrade the plan to add more.'
+              : propertyUnits.length > 0
+                ? ' Pick a different location.'
+                : ''}
           </Text>
         </View>
       ) : null}

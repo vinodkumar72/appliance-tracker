@@ -1,6 +1,19 @@
+import { Platform } from 'react-native';
+
 import { daysUntil, formatDate } from './dates';
 import { useAppStore } from './store';
 import type { Plan, Subscription } from './types';
+
+/**
+ * Whether this build may show purchasing or point users to it.
+ *
+ * Plans are bought on the web (Stripe). The iOS and Android apps are free
+ * companions to that paid web tool, which App Store guideline 3.1.3(f) allows
+ * only if the app contains no purchasing and no calls to action to purchase
+ * elsewhere. So native builds show the company's current plan and limits but
+ * never an upgrade button, a price, or "upgrade on our website".
+ */
+export const PURCHASING_AVAILABLE = Platform.OS === 'web';
 
 export interface PlanStatus {
   /** The plan the org is signed up for (null = none assigned). */

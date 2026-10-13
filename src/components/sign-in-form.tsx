@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { Button, Card, FormField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -10,16 +10,11 @@ import { supabase } from '@/lib/supabase';
 import { syncNow } from '@/lib/sync';
 
 /**
- * Set this to the marketing site's address once it has its final domain —
- * the mobile login screen links prospects there.
- */
-const MARKETING_SITE_URL = '';
-
-/**
  * The sign-in form, shared by the web /sign-in page and the native app's
  * login screen. On native ("credentials-only"), self-registration and demo
  * mode are hidden: users get credentials from their property management
- * company, and prospects are pointed at the website.
+ * company. (No website link: the native app must not point to where plans
+ * are sold — App Store guideline 3.1.3(f).)
  */
 export function SignInForm({
   variant = 'web',
@@ -152,18 +147,6 @@ export function SignInForm({
           <Text style={[styles.guidanceBody, { color: theme.textSecondary }]}>
             Ask your property management company for your credentials — they'll send you an email
             invitation.
-          </Text>
-          <Text style={[styles.guidanceBody, { color: theme.textSecondary }]}>
-            Are you a property management company looking to start using this system?{' '}
-            {MARKETING_SITE_URL ? (
-              <Text
-                style={{ color: theme.tint, fontWeight: '600' }}
-                onPress={() => Linking.openURL(MARKETING_SITE_URL)}>
-                Visit our website to learn more.
-              </Text>
-            ) : (
-              'Visit our website to learn more.'
-            )}
           </Text>
         </View>
       ) : signUpMode ? (
