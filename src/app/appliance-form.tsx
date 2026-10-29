@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { DateField } from '@/components/date-field';
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Button, ChipPicker, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -12,7 +13,7 @@ import { APPLIANCE_TYPES, APPLIANCE_TYPE_ORDER } from '@/lib/defaults';
 import NetInfo from '@react-native-community/netinfo';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
-import { PURCHASING_AVAILABLE, useApplianceLimit } from '@/lib/billing';
+import { useApplianceLimit } from '@/lib/billing';
 import { parseLabelText } from '@/lib/label-parser';
 import { OFFLINE_OCR_AVAILABLE, runOfflineOcr } from '@/lib/ocr';
 import { can } from '@/lib/permissions';
@@ -353,31 +354,16 @@ export default function ApplianceFormScreen() {
           ]}
         />
       ) : null}
-      {bucketBlocked && applianceLimit ? (
-        <View
-          style={{
-            borderWidth: 1.5,
-            borderRadius: 10,
-            padding: 12,
-            borderColor: theme.warning,
-            backgroundColor: theme.backgroundElement,
-            gap: 4,
-          }}>
-          <Text style={{ color: theme.warning, fontSize: 14, fontWeight: '600' }}>
-            Appliance limit reached in {bucketLabel} ({applianceLimit.count}/{applianceLimit.max})
-          </Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-            The {applianceLimit.planName ?? 'current'} plan allows {applianceLimit.max} appliances
-            per unit.
-            {PURCHASING_AVAILABLE
-              ? propertyUnits.length > 0
-                ? ' Pick a different location, or upgrade the plan.'
-                : ' Upgrade the plan to add more.'
-              : propertyUnits.length > 0
-                ? ' Pick a different location.'
-                : ''}
-          </Text>
-        </View>
+      {bucketBlocked && applianceLimit && applianceLimit.max != null ? (
+        <PlanLimitNotice
+          kind="appliances"
+          count={applianceLimit.count}
+          max={applianceLimit.max}
+          planName={applianceLimit.planName}
+          where={`in ${bucketLabel}`}
+          hint={propertyUnits.length > 0 ? 'Pick a different location.' : undefined}
+          layout="banner"
+        />
       ) : null}
       <FormField label="Brand" value={brand} onChangeText={setBrand} placeholder="e.g. Whirlpool" />
       <FormField label="Model" value={model} onChangeText={setModel} placeholder="Model number" />

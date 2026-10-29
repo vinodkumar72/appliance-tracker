@@ -2,10 +2,11 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Button, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { PURCHASING_AVAILABLE, useOrgPlan } from '@/lib/billing';
+import { useOrgPlan } from '@/lib/billing';
 import { confirmDestructive } from '@/lib/confirm';
 import { can } from '@/lib/permissions';
 import { useAppStore, useSessionInfo } from '@/lib/store';
@@ -49,20 +50,15 @@ export default function UnitFormScreen() {
     );
   }
 
-  if (blockedByPlan && planInfo) {
+  if (blockedByPlan && planInfo && planInfo.effectiveMax != null) {
     return (
-      <Screen>
-        <EmptyState
-          emoji="📈"
-          title="Plan limit reached"
-          message={`The ${planInfo.plan?.name ?? 'current'} plan covers ${planInfo.effectiveMax} units (${planInfo.unitCount} in use).${
-            PURCHASING_AVAILABLE ? " Upgrade the company's plan to add more." : ''
-          }`}>
-          {PURCHASING_AVAILABLE ? (
-            <Button title="Upgrade plan" onPress={() => router.replace('/upgrade')} />
-          ) : null}
-        </EmptyState>
-      </Screen>
+      <PlanLimitNotice
+        kind="units"
+        count={planInfo.unitCount}
+        max={planInfo.effectiveMax}
+        planName={planInfo.plan?.name}
+        layout="screen"
+      />
     );
   }
 

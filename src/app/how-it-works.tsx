@@ -5,6 +5,7 @@ import { PageHero, PublicPage } from '@/components/public-page';
 import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { publicMetadata } from '@/lib/site';
 
 interface Step {
   title: string;
@@ -74,6 +75,15 @@ const ROLES: { emoji: string; name: string; blurb: string }[] = [
 ];
 
 /** Public page: the product loop in five steps, every screen the real app. */
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'How it works',
+    description: "From appliance label to organized portfolio in five steps: set up properties, scan labels, track every appliance's history, surface due dates, and give each role the right window.",
+    path: '/how-it-works',
+  });
+}
+
 export default function HowItWorksScreen() {
   const theme = useTheme();
 

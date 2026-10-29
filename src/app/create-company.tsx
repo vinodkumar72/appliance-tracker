@@ -1,9 +1,9 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { Stack, useRouter } from 'expo-router';
+import { Redirect, Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 
-import { Button, Card, EmptyState, FormField, Screen } from '@/components/ui';
+import { Button, Card, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { PURCHASING_AVAILABLE } from '@/lib/billing';
@@ -12,8 +12,9 @@ import { syncNow } from '@/lib/sync';
 
 /**
  * Self-serve signup, step 2: a signed-in user without a company creates their
- * own and becomes its owner (free tier, upgradeable in-app). Company creation
- * is web-only; team members are then added by invitation.
+ * own and becomes its owner on the free tier. Web-only: the native apps may
+ * not offer signup or point to it (App Store 3.1.3), so they redirect home.
+ * Team members are then added by invitation.
  */
 export default function CreateCompanyScreen() {
   const theme = useTheme();
@@ -25,16 +26,7 @@ export default function CreateCompanyScreen() {
   const [message, setMessage] = useState('');
 
   if (Platform.OS !== 'web') {
-    return (
-      <Screen>
-        <Stack.Screen options={{ title: 'Create your company' }} />
-        <EmptyState
-          emoji="🏢"
-          title="Create your company on the web"
-          message="Open PropsLane in a browser, sign in with this account, and set up your company there — then this app syncs it automatically."
-        />
-      </Screen>
-    );
+    return <Redirect href="/" />;
   }
 
   const create = async () => {

@@ -4,30 +4,9 @@ import { PublicPage } from '@/components/public-page';
 import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { DEFAULT_DESCRIPTION, OG_IMAGE, SITE_NAME, SITE_URL } from '@/lib/site';
+import { DEFAULT_DESCRIPTION } from '@/lib/site';
 
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
-
-/** schema.org structured data for the homepage: who we are and what the product is. */
-const STRUCTURED_DATA = [
-  {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: SITE_NAME,
-    url: SITE_URL,
-    logo: OG_IMAGE,
-  },
-  {
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: SITE_NAME,
-    url: SITE_URL,
-    description: DEFAULT_DESCRIPTION,
-    applicationCategory: 'BusinessApplication',
-    operatingSystem: 'iOS, Android, Web',
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  },
-];
 
 const PAINS: { title: string; body: string }[] = [
   {
@@ -123,7 +102,7 @@ export function Landing() {
   const theme = useTheme();
 
   return (
-    <PublicPage path="/" description={DEFAULT_DESCRIPTION} jsonLd={STRUCTURED_DATA}>
+    <PublicPage path="/" description={DEFAULT_DESCRIPTION}>
       {/* Hero: pitch + the appliance-label plate */}
       <View style={styles.hero}>
         <View style={styles.heroCopy}>

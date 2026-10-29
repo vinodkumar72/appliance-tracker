@@ -48,7 +48,9 @@
           "cameraPermission": "PropsLane uses the camera to scan appliance labels so records fill in automatically.",
           "photosPermission": "PropsLane uses your photo library so you can pick a photo of an appliance label to scan."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

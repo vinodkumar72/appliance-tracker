@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Badge, Button, EmptyState, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -35,25 +36,14 @@ export default function PropertiesScreen() {
 
   return (
     <Screen>
-      {canEdit && atLimit && planInfo ? (
-        <View
-          style={{
-            backgroundColor: theme.backgroundElement,
-            borderRadius: 12,
-            padding: 12,
-            gap: 4,
-          }}>
-          <Text style={{ color: theme.warning, fontSize: 14, fontWeight: '600' }}>
-            Plan limit reached ({planInfo.unitCount}/{planInfo.effectiveMax} units)
-          </Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-            The {planInfo.plan?.name ?? 'current'} plan covers {planInfo.effectiveMax} units.
-            Upgrade the plan to add more.
-          </Text>
-          <View style={{ flexDirection: 'row', marginTop: 4 }}>
-            <Button title="Upgrade plan" compact onPress={() => router.push('/upgrade')} />
-          </View>
-        </View>
+      {canEdit && atLimit && planInfo && planInfo.effectiveMax != null ? (
+        <PlanLimitNotice
+          kind="units"
+          count={planInfo.unitCount}
+          max={planInfo.effectiveMax}
+          planName={planInfo.plan?.name}
+          layout="banner"
+        />
       ) : null}
       {canEdit && !atLimit ? (
         <Button title="+ Add property" onPress={() => router.push('/property-form')} />

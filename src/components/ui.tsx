@@ -20,6 +20,8 @@ export function Screen({ children }: { children: ReactNode }) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: theme.background }}
+      // Keeps content clear of a translucent/transparent native header (iOS).
+      contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.screenContent}>
       <View style={styles.contentColumn}>{children}</View>
     </ScrollView>

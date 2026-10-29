@@ -1,6 +1,6 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
 import { Button, ChipPicker, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
@@ -51,6 +51,11 @@ export default function PlanFormScreen() {
     maxAppliances?: string;
     trialDays?: string;
   }>({});
+
+  // Prices and tiers are web-only (App Store 3.1.3; see PURCHASING_AVAILABLE).
+  if (Platform.OS !== 'web') {
+    return <Redirect href="/" />;
+  }
 
   if (!isPlatformAdmin) {
     return (

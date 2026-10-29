@@ -1,6 +1,6 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
 import { describePlanStatus, getPlanStatus } from '@/lib/billing';
 import { Badge, Button, Card, ChipPicker, EmptyState, Screen } from '@/components/ui';
@@ -22,6 +22,11 @@ export default function SubscriptionFormScreen() {
   const [planId, setPlanId] = useState(
     subscriptions.find((s) => s.orgId === orgId)?.planId ?? plans[0]?.id ?? '',
   );
+
+  // Prices and plan assignment are web-only (App Store 3.1.3; see PURCHASING_AVAILABLE).
+  if (Platform.OS !== 'web') {
+    return <Redirect href="/" />;
+  }
 
   if (!isPlatformAdmin || !org) {
     return (

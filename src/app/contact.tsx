@@ -7,8 +7,18 @@ import { Button, Card, FormField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
+import { publicMetadata } from '@/lib/site';
 
 /** Public page: send us a message. No account needed. */
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'Contact us',
+    description: "Questions about plans, onboarding, or anything else? Send PropsLane a message and we'll get back to you.",
+    path: '/contact',
+  });
+}
+
 export default function ContactScreen() {
   const theme = useTheme();
   const [name, setName] = useState('');

@@ -6,8 +6,18 @@ import { PageHero, PublicPage } from '@/components/public-page';
 import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { publicMetadata } from '@/lib/site';
 
 /** Public page: the live plan catalog (mirrored from Stripe), readable without an account. */
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'Pricing',
+    description: 'Simple, unit-based pricing. Start free with up to 3 units and no credit card; paid tiers are priced by the number of units you manage, and every tier includes every feature.',
+    path: '/pricing',
+  });
+}
+
 export default function PricingScreen() {
   const theme = useTheme();
 

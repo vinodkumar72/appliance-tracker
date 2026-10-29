@@ -1,5 +1,4 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, usePathname } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, usePathname } from 'expo-router';
 import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
@@ -36,6 +35,9 @@ export default function RootLayout() {
       <AuthGate>
       <Stack
         screenOptions={{
+          // SDK 58 defaults iOS 26 headers to transparent (Liquid Glass), which
+          // put the top of every modal's content under the header. Keep them opaque.
+          headerTransparent: false,
           headerShadowVisible: false,
           headerTitleStyle: { fontWeight: '700' },
           contentStyle: { backgroundColor: theme.background },
@@ -68,7 +70,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="plan-form" options={{ title: 'Plan', presentation: 'modal' }} />
         <Stack.Screen name="subscription-form" options={{ title: 'Subscription', presentation: 'modal' }} />
-        <Stack.Screen name="upgrade" options={{ title: 'Upgrade plan', presentation: 'modal' }} />
+        <Stack.Screen name="upgrade" options={{ title: 'Plan', presentation: 'modal' }} />
         <Stack.Screen name="member-form" options={{ title: 'Member', presentation: 'modal' }} />
         <Stack.Screen name="+not-found" options={{ title: 'Page not found', headerShown: false }} />
       </Stack>

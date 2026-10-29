@@ -6,6 +6,7 @@ import { PageHero, PublicPage } from '@/components/public-page';
 import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { publicMetadata } from '@/lib/site';
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const theme = useTheme();
@@ -18,6 +19,15 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** Public page: privacy policy (required for the app stores). */
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'Privacy policy',
+    description: 'How PropsLane collects, uses, stores, and protects your data, and the choices you have.',
+    path: '/privacy',
+  });
+}
+
 export default function PrivacyScreen() {
 
   return (

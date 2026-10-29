@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
-import { findFreePlan } from '@/lib/billing';
+import { PURCHASING_AVAILABLE, findFreePlan } from '@/lib/billing';
 import { Button, ChipPicker, EmptyState, FormField, Screen } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -118,7 +118,7 @@ export default function OrgFormScreen() {
       // get stuck in "pending" forever.
       if (error) console.warn(`Could not mark onboarding request handled: ${error.message}`);
     });
-    const planNote = selectedPlan
+    const planNote = PURCHASING_AVAILABLE && selectedPlan
       ? ` Plan: ${selectedPlan.name}${
           selectedPlan.yearlyPrice === 0
             ? ''
@@ -217,7 +217,9 @@ export default function OrgFormScreen() {
             autoCapitalize="none"
             error={errors.ownerEmail}
           />
-          {plans.length > 0 ? (
+          {/* Tiers, prices and trials are web-only (see PURCHASING_AVAILABLE);
+              natively the company silently starts on the free tier. */}
+          {PURCHASING_AVAILABLE && plans.length > 0 ? (
             <>
               <ChipPicker
                 label="Starting plan"

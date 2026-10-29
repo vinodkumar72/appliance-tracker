@@ -7,6 +7,7 @@ import { Button, Card, ChipPicker, FormField } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
+import { publicMetadata } from '@/lib/site';
 
 interface PublicPlanOption {
   id: string;
@@ -19,6 +20,15 @@ interface PublicPlanOption {
 const NOT_SURE = 'not-sure';
 
 /** Public page: prospective customers ask to be onboarded. No account needed. */
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'Request an invite',
+    description: "Tell us about your property management company and we'll set you up on PropsLane with an invitation by email.",
+    path: '/request-invite',
+  });
+}
+
 export default function RequestInviteScreen() {
   const theme = useTheme();
   const [company, setCompany] = useState('');

@@ -7,7 +7,14 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { daysUntil, formatDate } from '@/lib/dates';
 import { can, ROLE_LABELS } from '@/lib/permissions';
+import { PURCHASING_AVAILABLE } from '@/lib/billing';
 import { getSchedulesWithDue, useAppStore, useOrgData, useSessionInfo } from '@/lib/store';
+import { publicMetadata } from '@/lib/site';
+
+/** Build-time metadata for "/" — the static HTML shows the marketing landing page (see AuthGate). */
+export function generateMetadata() {
+  return publicMetadata({ path: '/' });
+}
 
 export default function DashboardScreen() {
   const theme = useTheme();
@@ -33,9 +40,9 @@ export default function DashboardScreen() {
               <Button title="Set up platform" onPress={() => router.push('/platform-setup')} />
             ) : isPlatformAdmin ? (
               <Button title="Onboard a company" onPress={() => router.push('/org-form')} />
-            ) : (
+            ) : PURCHASING_AVAILABLE ? (
               <Button title="Create your company" onPress={() => router.push('/create-company')} />
-            )}
+            ) : null}
             <Button title="Load sample data" variant="secondary" onPress={loadSampleData} />
           </View>
         </EmptyState>

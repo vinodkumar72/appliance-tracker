@@ -124,6 +124,7 @@ export default function OrganizationScreen() {
       'Sign out?',
       'Anything not yet synced is uploaded first; once everything is safe in the cloud, this device is cleared.',
       () => void signOutClean(),
+      'Sign out',
     );
 
   // Platform-owner sections, rendered BOTH in the normal view and in the
@@ -143,7 +144,7 @@ export default function OrganizationScreen() {
               {request.phone ? ` · ${request.phone}` : ''} ·{' '}
               {new Date(request.created_at).toLocaleDateString()}
             </Text>
-            {request.plan_id ? (
+            {PURCHASING_AVAILABLE && request.plan_id ? (
               <View style={{ flexDirection: 'row' }}>
                 <Badge
                   label={`Interested in: ${
@@ -209,7 +210,8 @@ export default function OrganizationScreen() {
       </>
     ) : null;
 
-  const plansSection = isPlatformAdmin ? (
+  // Prices and tiers are web-only (PURCHASING_AVAILABLE) — even for the platform admin.
+  const plansSection = PURCHASING_AVAILABLE && isPlatformAdmin ? (
     <>
       <SectionHeader
         title={`Plans (${plans.length})`}
@@ -276,16 +278,18 @@ export default function OrganizationScreen() {
               ? 'Set up your operator account, then onboard property management companies onto the platform.'
               : isPlatformAdmin
                 ? 'Onboard your first company to get started.'
-                : 'Create your own company to try PropsLane — or, if your property management company already uses it, ask them for an email invitation.'
+                : PURCHASING_AVAILABLE
+                  ? 'Create your own company to try PropsLane — or, if your property management company already uses it, ask them for an email invitation.'
+                  : 'If your property management company uses PropsLane, ask them for an email invitation.'
           }>
           <View style={styles.emptyButtons}>
             {users.length === 0 ? (
               <Button title="Set up platform" onPress={() => router.push('/platform-setup')} />
             ) : isPlatformAdmin ? (
               <Button title="Onboard a company" onPress={() => router.push('/org-form')} />
-            ) : (
+            ) : PURCHASING_AVAILABLE ? (
               <Button title="Create your company" onPress={() => router.push('/create-company')} />
-            )}
+            ) : null}
             <Button title="Load sample data" variant="secondary" onPress={loadSampleData} />
             <Button
               title="Account & sync"
@@ -355,7 +359,7 @@ export default function OrganizationScreen() {
                 {memberCount === 1 ? '' : 's'}
                 {isPlatformAdmin && org.selfServed ? ' · self-served signup' : ''}
               </Text>
-              {plans.length > 0 ? (
+              {PURCHASING_AVAILABLE && plans.length > 0 ? (
                 <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
                   <Badge
                     label={describePlanStatus(getPlanStatus(plans, subscriptions, org.id))}
@@ -377,7 +381,7 @@ export default function OrganizationScreen() {
             </View>
             <View style={{ gap: 6, alignItems: 'flex-end' }}>
               {selected ? <Badge label="current" tone="tint" /> : null}
-              {isPlatformAdmin ? (
+              {PURCHASING_AVAILABLE && isPlatformAdmin ? (
                 <Button
                   title="Plan"
                   variant="secondary"
@@ -401,7 +405,8 @@ export default function OrganizationScreen() {
 
       {plansSection}
 
-      {currentOrgPlan && currentOrgPlan.status !== 'none' ? (
+      {/* Plan, usage meter and upgrade live on the web only (see PURCHASING_AVAILABLE). */}
+      {PURCHASING_AVAILABLE && currentOrgPlan && currentOrgPlan.status !== 'none' ? (
         <>
           <SectionHeader title="Subscription" />
           <Card>
@@ -427,8 +432,7 @@ export default function OrganizationScreen() {
                 ? ' The paid plan lapsed, so free-tier limits apply — existing data is untouched.'
                 : ''}
             </Text>
-            {/* Purchasing lives on the web only (see PURCHASING_AVAILABLE). */}
-            {PURCHASING_AVAILABLE && !isPlatformAdmin && (role === 'owner' || role === 'admin') ? (
+            {!isPlatformAdmin && (role === 'owner' || role === 'admin') ? (
               <View style={{ flexDirection: 'row' }}>
                 <Button
                   title="Upgrade plan"
@@ -436,7 +440,7 @@ export default function OrganizationScreen() {
                   onPress={() => router.push('/upgrade')}
                 />
               </View>
-            ) : PURCHASING_AVAILABLE && !isPlatformAdmin ? (
+            ) : !isPlatformAdmin ? (
               <Text style={{ color: theme.textSecondary, fontSize: 12, fontStyle: 'italic' }}>
                 Ask your company owner to upgrade the plan.
               </Text>
@@ -637,6 +641,7 @@ export default function OrganizationScreen() {
               'Reset all data?',
               'All companies, properties, and history on this device will be erased.',
               resetAll,
+              'Reset',
             )
           }
         />

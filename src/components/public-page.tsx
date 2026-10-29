@@ -5,14 +5,7 @@ import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import {
-  DEFAULT_DESCRIPTION,
-  OG_IMAGE,
-  SITE_NAME,
-  SITE_TAGLINE,
-  SITE_URL,
-  jsonLd,
-} from '@/lib/site';
+import { SITE_NAME, SITE_TAGLINE } from '@/lib/site';
 
 const logoMark = require('../../assets/images/logo-mark.png');
 
@@ -143,22 +136,20 @@ export function PageHero({
 /**
  * Page wrapper for public pages: sticky top nav, centered content column, footer.
  *
- * Also owns the page's search metadata. `title` becomes "<title> · PropsLane"
- * (omit it on the homepage), `description` feeds the meta description and
- * link previews, `path` sets the canonical URL, and `jsonLd` emits structured
- * data (schema.org) for rich results.
+ * The page's search metadata (title, description, canonical, Open Graph,
+ * Twitter) is produced at build time by each route's `generateMetadata()`
+ * export via `publicMetadata()` in src/lib/site.ts — since SDK 58, `<Head>`
+ * tags only apply after hydration and never reach the static HTML. `<Head>`
+ * here just keeps the title current on client-side navigation. JSON-LD is
+ * emitted by src/app/+html.tsx (see src/lib/structured-data.ts).
  */
 export function PublicPage({
   title,
-  description = DEFAULT_DESCRIPTION,
-  path,
-  jsonLd: structuredData,
   children,
 }: {
   title?: string;
   description?: string;
   path?: string;
-  jsonLd?: object | object[];
   children: ReactNode;
 }) {
   const theme = useTheme();
@@ -168,33 +159,10 @@ export function PublicPage({
     return <Redirect href="/" />;
   }
   const fullTitle = title ? `${title} · ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
-  const url = path ? `${SITE_URL}${path}` : undefined;
-  const schemas = structuredData
-    ? Array.isArray(structuredData)
-      ? structuredData
-      : [structuredData]
-    : [];
   return (
     <>
       <Head>
         <title>{fullTitle}</title>
-        <meta name="description" content={description} />
-        {url ? <link rel="canonical" href={url} /> : null}
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content={SITE_NAME} />
-        <meta property="og:title" content={fullTitle} />
-        <meta property="og:description" content={description} />
-        <meta property="og:image" content={OG_IMAGE} />
-        {url ? <meta property="og:url" content={url} /> : null}
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content={fullTitle} />
-        <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={OG_IMAGE} />
-        {schemas.map((schema, i) => (
-          <script key={i} type="application/ld+json">
-            {jsonLd(schema)}
-          </script>
-        ))}
       </Head>
       <ScrollView
         style={{ flex: 1, backgroundColor: theme.background }}

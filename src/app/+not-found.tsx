@@ -4,8 +4,17 @@ import { View } from 'react-native';
 import { PageHero, PublicPage } from '@/components/public-page';
 import { Button } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
+import { publicMetadata } from '@/lib/site';
 
 /** Shown for any URL that matches no route. The root layout marks it noindex. */
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'Page not found',
+    description: "That page doesn't exist or has moved.",
+  });
+}
+
 export default function NotFoundScreen() {
   return (
     <PublicPage title="Page not found" description="That page doesn't exist or has moved.">

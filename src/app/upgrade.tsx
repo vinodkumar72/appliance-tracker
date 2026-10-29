@@ -1,5 +1,5 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { Stack, useRouter } from 'expo-router';
+import { Redirect, Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 
@@ -56,17 +56,9 @@ export default function UpgradeScreen() {
     );
   }
 
+  // Never shown natively — the apps carry no plan or purchase UI (App Store 3.1.3).
   if (Platform.OS !== 'web') {
-    return (
-      <Screen>
-        <Stack.Screen options={{ title: 'Plan' }} />
-        <EmptyState
-          emoji="🏢"
-          title="Plan managed by your company"
-          message="Your company's plan and limits are set on its account. This app reflects that access; there is nothing to change here."
-        />
-      </Screen>
-    );
+    return <Redirect href="/" />;
   }
 
   const checkout = async () => {

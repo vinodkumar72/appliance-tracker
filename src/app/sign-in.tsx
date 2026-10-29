@@ -4,6 +4,16 @@ import { useEffect } from 'react';
 import { PageHero, PublicPage } from '@/components/public-page';
 import { SignInForm } from '@/components/sign-in-form';
 import { supabase } from '@/lib/supabase';
+import { publicMetadata } from '@/lib/site';
+
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'Sign in',
+    description: 'Sign in to your PropsLane company account. Your data syncs to this device once you are in.',
+    path: '/sign-in',
+  });
+}
 
 export default function SignInScreen() {
   const router = useRouter();

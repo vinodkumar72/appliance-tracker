@@ -5,6 +5,7 @@ import { PageHero, PublicPage } from '@/components/public-page';
 import { Button, Card, SectionHeader } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { publicMetadata } from '@/lib/site';
 
 const FEATURES: { title: string; body: string }[] = [
   {
@@ -34,6 +35,15 @@ const FEATURES: { title: string; body: string }[] = [
 ];
 
 /** Public page: what the product is, for prospects who found the app. */
+/** Build-time metadata for the static HTML (SDK 58+); PublicPage's <Head> only updates after hydration. */
+export function generateMetadata() {
+  return publicMetadata({
+    title: 'About',
+    description: 'PropsLane is the maintenance, warranty, and repair system for property management companies: label scanning, automatic maintenance schedules, warranty alerts, team roles, and an investor portal.',
+    path: '/about',
+  });
+}
+
 export default function AboutScreen() {
   const theme = useTheme();
 

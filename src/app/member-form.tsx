@@ -298,6 +298,7 @@ export default function MemberFormScreen() {
                   removeMember(existing.id);
                   router.back();
                 },
+                'Remove',
               )
             }
           />

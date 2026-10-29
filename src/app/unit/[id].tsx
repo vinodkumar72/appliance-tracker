@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { ApplianceRow } from '@/components/appliance-row';
 import { OwnerCard } from '@/components/owner-card';
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Button, Card, EmptyState, Screen, SectionHeader } from '@/components/ui';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -87,16 +88,15 @@ export default function UnitDetailScreen() {
           ) : undefined
         }
       />
-      {canEdit && applianceLimit?.atLimit ? (
-        <Card>
-          <Text style={{ color: theme.warning, fontSize: 14, fontWeight: '600' }}>
-            Appliance limit reached ({applianceLimit.count}/{applianceLimit.max} in this unit)
-          </Text>
-          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-            The {applianceLimit.planName ?? 'current'} plan allows {applianceLimit.max} appliances
-            per unit. Upgrade the plan to add more.
-          </Text>
-        </Card>
+      {canEdit && applianceLimit?.atLimit && applianceLimit.max != null ? (
+        <PlanLimitNotice
+          kind="appliances"
+          count={applianceLimit.count}
+          max={applianceLimit.max}
+          planName={applianceLimit.planName}
+          where="in this unit"
+          layout="banner"
+        />
       ) : null}
       {unitAppliances.length === 0 ? (
         <Card>

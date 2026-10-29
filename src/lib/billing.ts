@@ -5,13 +5,18 @@ import { useAppStore } from './store';
 import type { Plan, Subscription } from './types';
 
 /**
- * Whether this build may show purchasing or point users to it.
+ * Whether this build may show anything about plans or purchasing.
  *
  * Plans are bought on the web (Stripe). The iOS and Android apps are free
- * companions to that paid web tool, which App Store guideline 3.1.3(f) allows
- * only if the app contains no purchasing and no calls to action to purchase
- * elsewhere. So native builds show the company's current plan and limits but
- * never an upgrade button, a price, or "upgrade on our website".
+ * companions to that paid web tool, which App Store guideline 3.1.3(c)/(f)
+ * allows only if the app contains no purchasing and no call to action to buy
+ * or sign up elsewhere. Native builds therefore show NOTHING about plans:
+ * no plan names, prices, trials, usage meters, upgrade buttons, or "do it on
+ * our website" pointers. Limits are still enforced; the user just sees a
+ * neutral "contact your administrator" notice (see PlanLimitNotice).
+ *
+ * Gate every plan-related piece of UI on this flag, including platform-admin
+ * screens — "Load sample data" makes any viewer the seeded platform admin.
  */
 export const PURCHASING_AVAILABLE = Platform.OS === 'web';
 

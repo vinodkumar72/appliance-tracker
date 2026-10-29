@@ -15,6 +15,7 @@ export default function TabLayout() {
           borderTopColor: theme.border,
         },
         tabBarLabelStyle: { fontWeight: '600' },
+        headerTransparent: false,
         headerShadowVisible: false,
         headerTitleStyle: { fontWeight: '800', fontSize: 22 },
       }}>
@@ -22,14 +23,14 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color as string} size={size} />,
         }}
       />
       <Tabs.Screen
         name="properties"
         options={{
           title: 'Properties',
-          tabBarIcon: ({ color, size }) => <Ionicons name="business" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="business" color={color as string} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -37,7 +38,7 @@ export default function TabLayout() {
         options={{
           title: 'Tasks',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="checkmark-done" color={color} size={size} />
+            <Ionicons name="checkmark-done" color={color as string} size={size} />
           ),
         }}
       />
@@ -45,7 +46,7 @@ export default function TabLayout() {
         name="organization"
         options={{
           title: 'Company',
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color as string} size={size} />,
         }}
       />
     </Tabs>

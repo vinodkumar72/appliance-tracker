@@ -98,7 +98,10 @@ fall back to the free tier — reassign them to the mirrored plan first
 ## Self-serve upgrades (Stripe Checkout)
 
 Company owners/admins can upgrade themselves: Company tab → Upgrade plan (the
-button also appears on every "plan limit reached" screen). The flow:
+button also appears on every "plan limit reached" screen). This — and every
+plan name, price, trial or usage meter — is **web only**: the iOS/Android apps
+are free companions and must show no purchasing or pointers to it (App Store
+guideline 3.1.3; see `PURCHASING_AVAILABLE` in `src/lib/billing.ts`). The flow:
 
 1. The app calls the `create-checkout` function → Stripe Checkout opens.
 2. They pay; Stripe fires `checkout.session.completed` at the webhook.
